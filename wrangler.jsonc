@@ -11,5 +11,12 @@
   "vars": {
     "NEXT_PUBLIC_API_URL": "https://startupzconnect.pages.dev",
     "NODE_VERSION": "20"
-  }
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "startupzconnect_db",
+      "database_id": "7eae6280-31a6-4dae-bffe-38bc9885df94"
+    }
+  ]
 }
