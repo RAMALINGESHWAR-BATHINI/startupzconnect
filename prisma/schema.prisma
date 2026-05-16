@@ -1,0 +1,105 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id                    Int                    @id @default(autoincrement())
+  name                  String
+  email                 String                 @unique
+  password              String
+  role                  String                 @default("USER")
+  refreshToken          String?
+  startups              Startup[]
+  jobApplications       JobApplication[]
+  collaborationRequests CollaborationRequest[]
+  suggestions           Suggestion[]
+  investmentInterests   InvestmentInterest[]
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+}
+
+
+
+
+
+model Startup {
+  id                    Int                    @id @default(autoincrement())
+  name                  String
+  domain                String?
+  description           String?
+  founderId             Int
+  founder               User                   @relation(fields: [founderId], references: [id], onDelete: Cascade)
+  jobOpenings           JobOpening[]
+  collaborationRequests CollaborationRequest[]
+  suggestions           Suggestion[]
+  investmentInterests   InvestmentInterest[]
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  @@index([domain])
+}
+
+model JobOpening {
+  id              Int              @id @default(autoincrement())
+  startupId       Int
+  startup         Startup          @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  title           String
+  skills          String?
+  type            String?
+  jobApplications JobApplication[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([type])
+  @@index([startupId])
+}
+
+model JobApplication {
+  id        Int        @id @default(autoincrement())
+  jobId     Int
+  job       JobOpening @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status    String     @default("PENDING")
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model CollaborationRequest {
+  id        Int      @id @default(autoincrement())
+  startupId Int
+  startup   Startup  @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Suggestion {
+  id        Int      @id @default(autoincrement())
+  startupId Int
+  startup   Startup  @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model InvestmentInterest {
+  id        Int      @id @default(autoincrement())
+  startupId Int
+  startup   Startup  @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount    Float?
+  message   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
