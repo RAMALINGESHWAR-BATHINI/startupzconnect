@@ -7,5 +7,9 @@
   ],
   "observability": {
     "enabled": true
+  },
+  "vars": {
+    "NEXT_PUBLIC_API_URL": "https://startupzconnect.pages.dev",
+    "NODE_VERSION": "20"
   }
 }
