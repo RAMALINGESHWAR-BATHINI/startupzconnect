@@ -22,9 +22,32 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid email or password.' }, { status: 401 });
     }
 
+    // Account lockout: 5 failed attempts locks the account for 15 minutes.
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      const minutesLeft = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);
+      return NextResponse.json({ error: `Too many failed attempts. Try again in ${minutesLeft} minute(s).` }, { status: 429 });
+    }
+
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
+      const attempts = user.failedLoginAttempts + 1;
+      const shouldLock = attempts >= 5;
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          failedLoginAttempts: shouldLock ? 0 : attempts,
+          lockedUntil: shouldLock ? new Date(Date.now() + 15 * 60 * 1000) : null,
+        },
+      });
+      if (shouldLock) {
+        return NextResponse.json({ error: 'Too many failed attempts. Account locked for 15 minutes.' }, { status: 429 });
+      }
       return NextResponse.json({ error: 'Invalid email or password.' }, { status: 401 });
+    }
+
+    // Successful login clears any prior failed-attempt count.
+    if (user.failedLoginAttempts > 0 || user.lockedUntil) {
+      await prisma.user.update({ where: { id: user.id }, data: { failedLoginAttempts: 0, lockedUntil: null } });
     }
 
     const accessToken = signAccessToken({ id: user.id, email: user.email, role: user.role });

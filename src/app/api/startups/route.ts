@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { isEmailVerified, unverifiedResponse } from '@/lib/guards';
 import prisma from '@/lib/prisma';
 import { verifyAccessToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
@@ -56,6 +57,8 @@ export async function POST(request: Request) {
     if (!decoded || (decoded.role !== 'STARTUP' && decoded.role !== 'ADMIN')) {
       return NextResponse.json({ error: 'Only startup accounts can create a startup profile.' }, { status: 403 });
     }
+
+    if (!(await isEmailVerified(decoded.id, decoded.role))) return unverifiedResponse();
 
     const body = await request.json();
     const { name, domain, description, originType, institutionName, registrationId,

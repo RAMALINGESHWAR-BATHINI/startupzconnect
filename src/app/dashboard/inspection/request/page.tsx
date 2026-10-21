@@ -6,16 +6,15 @@ import api from '@/lib/api';
 import { ClipboardList, Loader2, ArrowLeft, AlertCircle, CheckCircle, Shield } from 'lucide-react';
 
 const TIERS = [
-  { value: 'BASIC',    label: 'Basic Inspection',   price: '₹2,500', features: ['Office visit','Full report','Registered badge'] },
-  { value: 'STANDARD', label: 'Standard Inspection', price: '₹3,500', features: ['Office visit','Full report','Field Verified badge','Product showcase photos'] },
-  { value: 'PREMIUM',  label: 'Premium Inspection',  price: '₹5,000', features: ['Office visit','Full report','Field Verified badge','Full photo set','Video walkthrough'] },
+  { value: 'BASIC',    label: 'Basic Inspection',   price: '₹1,000', features: ['Office visit','Full report','Field Verified badge'] },
+  { value: 'PREMIUM',  label: 'Premium Inspection',  price: '₹3,000', features: ['Office visit','Full report','Field Verified badge','Full photo set','Product showcase','Video walkthrough'] },
 ];
 
 export default function RequestInspectionPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [myStartups, setMyStartups] = useState<any[]>([]);
-  const [form, setForm] = useState({ startupId: '', tier: 'STANDARD', preferredDate: '', notes: '' });
+  const [form, setForm] = useState({ startupId: '', tier: 'BASIC', preferredDate: '', notes: '' });
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');

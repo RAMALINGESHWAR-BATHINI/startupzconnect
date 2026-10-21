@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { isEmailVerified, unverifiedResponse } from '@/lib/guards';
 import prisma from '@/lib/prisma';
 import { verifyAccessToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
@@ -26,6 +27,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!token) return NextResponse.json({ error: 'Please log in to leave a review.' }, { status: 401 });
     const decoded = verifyAccessToken(token) as any;
     if (!decoded) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    if (!(await isEmailVerified(decoded.id, decoded.role))) return unverifiedResponse();
 
     const startupId = parseInt(id);
     const startup = await prisma.startup.findUnique({ where: { id: startupId } });

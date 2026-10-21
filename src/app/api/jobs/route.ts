@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { isEmailVerified, unverifiedResponse } from '@/lib/guards';
 import prisma from '@/lib/prisma';
 import { verifyAccessToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
@@ -49,6 +50,8 @@ export async function POST(request: Request) {
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const decoded = verifyAccessToken(token) as any;
     if (!decoded) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    if (!(await isEmailVerified(decoded.id, decoded.role))) return unverifiedResponse();
 
     const { startupId, title, description, skills, type, location, salaryMin, salaryMax } = await request.json();
     if (!startupId || !title?.trim()) return NextResponse.json({ error: 'startupId and title are required.' }, { status: 400 });

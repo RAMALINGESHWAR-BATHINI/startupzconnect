@@ -37,6 +37,19 @@ model User {
 
   refreshToken String?
 
+  // Email verification
+  emailVerified       Boolean   @default(false)
+  emailVerifyToken    String?   @unique
+  emailVerifyExpires  DateTime?
+
+  // Password reset
+  resetToken          String?   @unique
+  resetTokenExpires   DateTime?
+
+  // Login rate limiting / account lockout
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+
   // Relations
   startups              Startup[]
   jobApplications       JobApplication[]
@@ -295,11 +308,16 @@ model InspectionReport {
   id          Int        @id @default(autoincrement())
   startupId   Int
   startup     Startup    @relation(fields: [startupId], references: [id], onDelete: Cascade)
-  agentId     Int
-  agent       FieldAgent @relation(fields: [agentId], references: [id])
+  agentId     Int?
+  agent       FieldAgent? @relation(fields: [agentId], references: [id])
 
-  status      String     @default("SCHEDULED")
-  // SCHEDULED | IN_PROGRESS | SUBMITTED | APPROVED | REJECTED | FAILED
+  // What the founder requested
+  tier          String    @default("BASIC") // BASIC (₹1,000) | PREMIUM (₹3,000)
+  preferredDate DateTime?
+  requestNotes  String?
+
+  status      String     @default("PENDING")
+  // PENDING (no agent yet) | SCHEDULED | IN_PROGRESS | SUBMITTED | APPROVED | REJECTED | FAILED
 
   // Scores 1-10
   legitimacyScore     Int?

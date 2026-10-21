@@ -74,3 +74,39 @@ Only `STARTUP` role accounts can create a startup profile or post jobs.
 3. Document upload + admin verification queue for the Registered badge
 4. Email notifications (Resend) for: inspection status, job application
    updates, new collaboration/investment interest
+
+## Critical auth gaps fixed in this pass
+
+1. **Email verification** — new users get a 24h verification link (logged to
+   console via `src/lib/mailer.ts` until a real provider is wired up). Writing
+   actions (creating a startup, posting a job, applying, reviewing, investing,
+   collaborating) are blocked with a 403 until the account is verified.
+   Resend the link anytime from Dashboard → Settings.
+2. **Password reset** — `/forgot-password` → emailed link → `/reset-password`.
+   Reset tokens expire in 1 hour and are single-use. A successful reset also
+   clears the stored refresh token, so old sessions are force-logged-out.
+3. **Login rate limiting** — 5 failed attempts locks the account for 15
+   minutes (`failedLoginAttempts` / `lockedUntil` on `User`). Successful login
+   clears the counter.
+4. **Self-service account deletion** — Settings → Danger Zone, password-
+   confirmed. Cascades through Prisma relations. Field agents with inspection
+   history can't self-delete (their reports back startup badges) — they're
+   told to contact support instead.
+5. **Session management** — "Log Out of All Devices" in Settings clears the
+   stored refresh token server-side, invalidating every other active session
+   immediately.
+
+### Wiring a real email provider
+
+Everything routes through `sendMail()` in `src/lib/mailer.ts`. Right now it
+just logs to the console. To go live, sign up for Resend, set
+`RESEND_API_KEY` in `.env.local`, and uncomment the fetch call in that file —
+nothing else in the app needs to change.
+
+### Inspection pricing (current)
+
+- **Basic** — ₹1,000 (visit + report + badge)
+- **Premium** — ₹3,000 (+ full photo set, product showcase, video walkthrough)
+
+Payment collection is still not wired to a gateway — see the monetization
+gap noted separately.

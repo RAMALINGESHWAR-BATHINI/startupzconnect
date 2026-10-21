@@ -3,6 +3,8 @@ import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
 import { verifyAccessToken } from '@/lib/auth';
 
+const ALLOWED_TIERS = ['BASIC', 'PREMIUM'] as const;
+
 export async function POST(request: Request) {
   try {
     const cookieStore = await cookies();
@@ -13,6 +15,9 @@ export async function POST(request: Request) {
 
     const { startupId, tier, preferredDate, notes } = await request.json();
     if (!startupId) return NextResponse.json({ error: 'startupId is required.' }, { status: 400 });
+    if (!ALLOWED_TIERS.includes(tier)) {
+      return NextResponse.json({ error: 'Invalid inspection package.' }, { status: 400 });
+    }
 
     const startup = await prisma.startup.findUnique({ where: { id: parseInt(startupId) } });
     if (!startup) return NextResponse.json({ error: 'Startup not found.' }, { status: 404 });
@@ -20,15 +25,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'You can only request inspection for your own startup.' }, { status: 403 });
     }
 
-    // Find any available agent (in real app, would match by city)
-    const agent = await prisma.fieldAgent.findFirst({ where: { isActive: true } });
-    if (!agent) {
-      // Still create the request; admin will assign agent manually
-      return NextResponse.json({ message: 'Inspection request received. An agent will be assigned shortly.', status: 'PENDING' }, { status: 201 });
+    // Don't allow stacking requests while one is already in flight.
+    const inFlight = await prisma.inspectionReport.findFirst({
+      where: { startupId: startup.id, status: { in: ['PENDING', 'SCHEDULED', 'IN_PROGRESS', 'SUBMITTED'] } },
+    });
+    if (inFlight) {
+      return NextResponse.json({ error: 'An inspection is already in progress for this startup.' }, { status: 409 });
     }
 
+    // Naive agent match: any active agent. City-based matching is a later upgrade.
+    // If nobody is available the request is still saved as PENDING (no agent yet)
+    // instead of being silently dropped.
+    const agent = await prisma.fieldAgent.findFirst({ where: { isActive: true } });
+
     const inspection = await prisma.inspectionReport.create({
-      data: { startupId: parseInt(startupId), agentId: agent.id, status: 'SCHEDULED' },
+      data: {
+        startupId: startup.id,
+        agentId: agent?.id ?? null,
+        tier,
+        preferredDate: preferredDate ? new Date(preferredDate) : null,
+        requestNotes: notes?.trim() || null,
+        status: agent ? 'SCHEDULED' : 'PENDING',
+      },
     });
     return NextResponse.json(inspection, { status: 201 });
   } catch (err) {
