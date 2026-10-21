@@ -63,6 +63,9 @@ The consolidation release. Based on v5.1 with the consent flow, UI fixes and rep
   rather than merely present, and reports legacy role-trust call sites as advisories instead of silently
   passing.
 - New npm scripts: `build:worker`, `typecheck`, `security:check`, `verify:consent`.
+- **Added a `postinstall` hook.** npm 11 gates dependency install scripts, so a fresh `npm ci` left the
+  Prisma client ungenerated — which broke `tsc --noEmit` (6 implicit-`any` errors) and one test suite.
+  `postinstall: prisma generate` restores a working checkout straight after install.
 
 ### Removed
 - `prisma/dev.db` — removed from every commit in the repository. It contained user rows, bcrypt password

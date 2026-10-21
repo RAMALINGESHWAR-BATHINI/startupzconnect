@@ -95,6 +95,9 @@ Java/JSP prototype and evolved through six Next.js releases into a production-or
 npm install
 ```
 
+`postinstall` runs `prisma generate`, so the Prisma client is always in step with `prisma/schema.prisma`.
+If you install with `--ignore-scripts`, run `npx prisma generate` manually.
+
 ### 2. Configure the environment
 
 ```bash
