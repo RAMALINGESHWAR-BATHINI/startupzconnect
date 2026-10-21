@@ -304,6 +304,7 @@ The full narrative is in [`docs/EVOLUTION.md`](docs/EVOLUTION.md), and the per-r
 |----------|----------|
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Stack, directory layout, security principles. |
 | [`docs/API-DOCS.md`](docs/API-DOCS.md) | API surface overview and conventions. |
+| [`docs/PLATFORM-POLICIES.md`](docs/PLATFORM-POLICIES.md) | The full platform policy — registration, inspections, investor, review, jobs, content, data, fees and enforcement. |
 | [`docs/ADMIN-ROLES.md`](docs/ADMIN-ROLES.md) | The five primary and five operational admin roles. |
 | [`docs/SECURITY-POLICIES.md`](docs/SECURITY-POLICIES.md) | Security policy set and enforcement points. |
 | [`docs/SECURITY.md`](docs/SECURITY.md) | Consolidation-time secret audit, findings and remediation. |
@@ -314,7 +315,8 @@ The full narrative is in [`docs/EVOLUTION.md`](docs/EVOLUTION.md), and the per-r
 | [`docs/TESTING.md`](docs/TESTING.md) | Test strategy and how to run the suite. |
 | [`docs/EVOLUTION.md`](docs/EVOLUTION.md) | How the platform evolved from v0 to v6. |
 | [`docs/RELEASE_HISTORY.md`](docs/RELEASE_HISTORY.md) | Detailed per-release changelog. |
-| [`SETUP.md`](SETUP.md) | Step-by-step local and production setup. |
+| [`docs/PHASE1-GAPS.md`](docs/PHASE1-GAPS.md) | The Phase 1 readiness review and which gaps are still open. |
+| [`SETUP.md`](SETUP.md) | Step-by-step local setup, feature walkthrough and roadmap. |
 
 ---
 

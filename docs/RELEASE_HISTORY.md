@@ -66,6 +66,10 @@ The consolidation release. Based on v5.1 with the consent flow, UI fixes and rep
 - **Added a `postinstall` hook.** npm 11 gates dependency install scripts, so a fresh `npm ci` left the
   Prisma client ungenerated — which broke `tsc --noEmit` (6 implicit-`any` errors) and one test suite.
   `postinstall: prisma generate` restores a working checkout straight after install.
+- **Dropped `npx` from the build scripts.** `npx prisma generate` silently falls back to downloading
+  `prisma` from the registry when the local binary is missing — and the registry's `prisma` package is a
+  different, incompatible project (it resolves to `8.0.0-rc.24`, whose CLI has no `generate` command).
+  The scripts now call the local `prisma` binary directly.
 
 ### Removed
 - `prisma/dev.db` — removed from every commit in the repository. It contained user rows, bcrypt password

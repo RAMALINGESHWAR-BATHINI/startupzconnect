@@ -69,11 +69,20 @@ export default function TermsPage() {
         <p>We may update these terms from time to time. Material changes will be emailed to registered users. Continued use of the platform after a change constitutes acceptance of the updated terms.</p>
       </Section>
 
-      <p className="text-slate-500 text-sm mt-12">
-        For the complete policy detail — including full inspection, review, and refund rules — see our{' '}
-        <Link href="/privacy" className="text-indigo-400 hover:text-indigo-300">Privacy Policy</Link>, or contact{' '}
-        <span className="text-slate-400">policy@startupzconnect.com</span>.
-      </p>
+        <p className="text-slate-500 text-sm mt-12">
+          For the complete policy detail — including full inspection, review, and refund rules — see our{' '}
+          <Link href="/privacy" className="text-indigo-400 hover:text-indigo-300">Privacy Policy</Link>, the{' '}
+          <a
+            href="https://github.com/RAMALINGESHWAR-BATHINI/startupzconnect/blob/master/docs/PLATFORM-POLICIES.md"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-indigo-400 hover:text-indigo-300"
+          >
+            full platform policy
+          </a>
+          , or contact{' '}
+          <span className="text-slate-400">policy@startupzconnect.com</span>.
+        </p>
     </div>
   );
 }
