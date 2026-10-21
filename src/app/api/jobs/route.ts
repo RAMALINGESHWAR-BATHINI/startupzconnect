@@ -3,6 +3,7 @@ import { isEmailVerified, unverifiedResponse } from '@/lib/guards';
 import prisma from '@/lib/prisma';
 import { verifyAccessToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
+import { displayBadgeTier } from '@/lib/badges';
 
 export async function GET(request: Request) {
   try {
@@ -30,13 +31,18 @@ export async function GET(request: Request) {
         where, skip, take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
-          startup: { select: { id: true, name: true, domain: true, badgeTier: true } },
+          startup: { select: { id: true, name: true, domain: true, badgeTier: true, lastInspectedAt: true } },
           _count: { select: { jobApplications: true } },
         },
       }),
       prisma.jobOpening.count({ where }),
     ]);
-    return NextResponse.json({ jobs, total, page, totalPages: Math.ceil(total / limit) });
+    const withEffectiveBadges = jobs.map(j => ({
+      ...j,
+      startup: j.startup ? { ...j.startup, badgeTier: displayBadgeTier(j.startup.badgeTier, j.startup.lastInspectedAt) } : j.startup,
+    }));
+
+    return NextResponse.json({ jobs: withEffectiveBadges, total, page, totalPages: Math.ceil(total / limit) });
   } catch (err) {
     console.error('GET /jobs error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

@@ -17,7 +17,7 @@ model User {
   email        String  @unique
   password     String
   role         String  @default("USER")
-  // Role values: USER | STUDENT | PROFESSIONAL | STARTUP | INVESTOR | OTHER | ADMIN
+  // Role values: USER | STUDENT | PROFESSIONAL | STARTUP | INVESTOR | MENTOR | OTHER | ADMIN
 
   // Profile extras
   bio          String?
@@ -34,6 +34,12 @@ model User {
   investorSectors     String?
   investorPastDeals   String?
   sebiRegNumber       String?
+
+  // Mentor-specific
+  mentorExpertise     String? // comma-separated domains e.g. "AI,FinTech"
+  mentorAvailability  String? // e.g. "2 hrs/month"
+  mentorBio           String?
+  mentorIsActive      Boolean @default(false)
 
   refreshToken String?
 
@@ -58,6 +64,10 @@ model User {
   reviewsGiven          StartupReview[]
   checkIns              OfficeCheckIn[]
   agentProfile          FieldAgent?
+  cofounderListing      CofounderListing?
+  eventRSVPs            EventRSVP[]
+  pressRequests         PressRequest[]
+  reportsFiled          Report[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -78,6 +88,8 @@ model Startup {
   originType       String  @default("INDEPENDENT")
   // INDEPENDENT | INSTITUTIONAL | ACCELERATOR | CORPORATE_SPINOFF | JV | GOVT_BACKED
   institutionName  String? // if INSTITUTIONAL or ACCELERATOR
+  institutionPartnerId Int?
+  institutionPartner   InstitutionPartner? @relation(fields: [institutionPartnerId], references: [id])
   registrationId   String? // CIN / LLPIN / GST etc.
   registeredAddress String?
   operationalAddress String?
@@ -113,6 +125,10 @@ model Startup {
   checkIns              OfficeCheckIn[]
   teamMembers           TeamMember[]
   workLogs              WorkLog[]
+  documents             StartupDocument[]
+  events                Event[]
+  pressResponses        PressResponse[]
+  receivedCollabRequests CollaborationRequest[] @relation("StartupToStartupCollab")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -204,14 +220,23 @@ model CollaborationRequest {
   id        Int      @id @default(autoincrement())
   startupId Int
   startup   Startup  @relation(fields: [startupId], references: [id], onDelete: Cascade)
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Exactly one of userId / fromStartupId is set — enforced at the API layer.
+  // A user collaborating with a startup uses userId; a startup collaborating
+  // with another startup uses fromStartupId instead.
+  userId    Int?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  fromStartupId Int?
+  fromStartup   Startup? @relation("StartupToStartupCollab", fields: [fromStartupId], references: [id], onDelete: Cascade)
+
   message   String?
   status    String   @default("PENDING") // PENDING | ACCEPTED | REJECTED
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([startupId, userId])
+  @@index([startupId])
+  @@index([fromStartupId])
 }
 
 // ─────────────────────────────────────────
@@ -350,4 +375,167 @@ model InspectionReport {
 
   @@index([startupId])
   @@index([status])
+}
+
+// ─────────────────────────────────────────
+// CO-FOUNDER MATCHING
+// ─────────────────────────────────────────
+model CofounderListing {
+  id             Int     @id @default(autoincrement())
+  userId         Int     @unique
+  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  lookingFor     String  // e.g. "Technical Co-founder", "Business Co-founder"
+  skillsOffered  String  // comma-separated
+  skillsWanted   String  // comma-separated
+  commitment     String  // "Full-time" | "Part-time" | "Weekends"
+  domain         String?
+  pitch          String  // short description of the idea/stage
+  isActive       Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([domain])
+}
+
+// ─────────────────────────────────────────
+// EVENTS
+// ─────────────────────────────────────────
+model Event {
+  id           Int      @id @default(autoincrement())
+  title        String
+  description  String?
+  type         String   // DEMO_DAY | PITCH_COMPETITION | MEETUP | WORKSHOP | OTHER
+  startupId    Int?
+  startup      Startup? @relation(fields: [startupId], references: [id], onDelete: SetNull)
+  organizerName String  // free-text org name if not tied to a startup (e.g. "T-Hub")
+  eventDate    DateTime
+  location     String?
+  isVirtual    Boolean  @default(false)
+  joinLink     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  rsvps        EventRSVP[]
+
+  @@index([eventDate])
+  @@index([type])
+}
+
+model EventRSVP {
+  id        Int      @id @default(autoincrement())
+  eventId   Int
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([eventId, userId])
+}
+
+// ─────────────────────────────────────────
+// GRANTS & GOVERNMENT SCHEMES
+// ─────────────────────────────────────────
+model Grant {
+  id           Int      @id @default(autoincrement())
+  name         String
+  provider     String   // e.g. "Startup India", "SIDBI", "State Govt of Telangana"
+  description  String
+  eligibility  String
+  amountRange  String?  // e.g. "Up to ₹10L"
+  applyUrl     String?
+  deadline     DateTime?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([isActive])
+}
+
+// ─────────────────────────────────────────
+// PRESS / MEDIA REQUESTS
+// ─────────────────────────────────────────
+model PressRequest {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String
+  domain      String?
+  deadline    DateTime?
+  status      String   @default("OPEN") // OPEN | CLOSED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  responses   PressResponse[]
+
+  @@index([status])
+}
+
+model PressResponse {
+  id             Int          @id @default(autoincrement())
+  pressRequestId Int
+  pressRequest   PressRequest @relation(fields: [pressRequestId], references: [id], onDelete: Cascade)
+  startupId      Int
+  startup        Startup      @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  message        String
+  createdAt      DateTime     @default(now())
+
+  @@unique([pressRequestId, startupId])
+}
+
+// ─────────────────────────────────────────
+// STARTUP DOCUMENTS (for the Registered badge)
+// ─────────────────────────────────────────
+model StartupDocument {
+  id           Int      @id @default(autoincrement())
+  startupId    Int
+  startup      Startup  @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  docType      String   // INCORPORATION | GST | DPIIT | SHOP_ACT | OTHER
+  fileUrl      String   // link to the document (paste-a-link until file upload/R2 exists)
+  status       String   @default("PENDING") // PENDING | VERIFIED | REJECTED
+  reviewNotes  String?
+  reviewedBy   Int?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([startupId])
+  @@index([status])
+}
+
+// ─────────────────────────────────────────
+// GENERIC CONTENT REPORTING (flag button)
+// ─────────────────────────────────────────
+model Report {
+  id          Int      @id @default(autoincrement())
+  contentType String   // REVIEW | STARTUP | JOB | USER
+  contentId   Int
+  reportedBy  Int
+  reporter    User     @relation(fields: [reportedBy], references: [id], onDelete: Cascade)
+  reason      String
+  status      String   @default("PENDING") // PENDING | ACTIONED | DISMISSED
+  createdAt   DateTime @default(now())
+
+  @@index([contentType, contentId])
+  @@index([status])
+}
+
+// ─────────────────────────────────────────
+// INSTITUTION PARTNERS (bulk onboarding channel)
+// ─────────────────────────────────────────
+model InstitutionPartner {
+  id           Int      @id @default(autoincrement())
+  name         String   // e.g. "T-Hub", "IIT Hyderabad Incubation Cell"
+  contactName  String?
+  contactEmail String?
+  city         String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  startups     Startup[]
+
+  @@index([isActive])
 }

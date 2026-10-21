@@ -3,6 +3,7 @@ import { isEmailVerified, unverifiedResponse } from '@/lib/guards';
 import prisma from '@/lib/prisma';
 import { verifyAccessToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
+import { displayBadgeTier } from '@/lib/badges';
 
 const ALLOWED_ORIGINS = ['INDEPENDENT','INSTITUTIONAL','ACCELERATOR','CORPORATE_SPINOFF','JV','GOVT_BACKED'];
 const ALLOWED_STAGES = ['IDEA','MVP','PRE_SEED','SEED','SERIES_A','SERIES_B','BOOTSTRAPPED'];
@@ -40,7 +41,10 @@ export async function GET(request: Request) {
       prisma.startup.count({ where }),
     ]);
 
-    return NextResponse.json({ startups, total, page, totalPages: Math.ceil(total / limit) });
+    // Apply expiry-aware badge tier to every listing row (18-month re-inspection rule, policy §4.6).
+    const withEffectiveBadges = startups.map(s => ({ ...s, badgeTier: displayBadgeTier(s.badgeTier, s.lastInspectedAt) }));
+
+    return NextResponse.json({ startups: withEffectiveBadges, total, page, totalPages: Math.ceil(total / limit) });
   } catch (err) {
     console.error('GET /startups error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

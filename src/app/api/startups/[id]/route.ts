@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifyAccessToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
+import { computeHealthScore, displayBadgeTier } from '@/lib/badges';
 
 const ALLOWED_DOMAINS = ['AI','FinTech','HealthTech','EdTech','SaaS','E-commerce','Logistics','CleanTech','GameTech','Other'];
 const ALLOWED_STAGES = ['IDEA','MVP','PRE_SEED','SEED','SERIES_A','SERIES_B','BOOTSTRAPPED'];
@@ -30,7 +31,31 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     });
 
     if (!startup) return NextResponse.json({ error: 'Startup not found.' }, { status: 404 });
-    return NextResponse.json(startup);
+
+    const avgAgg = await prisma.startupReview.aggregate({
+      where: { startupId },
+      _avg: { overallRating: true },
+    });
+
+    const effectiveBadgeTier = displayBadgeTier(startup.badgeTier, startup.lastInspectedAt);
+    const healthScore = computeHealthScore({
+      badgeTier: startup.badgeTier,
+      inspectionScore: startup.inspectionScore,
+      employeeCount: startup.employeeCount,
+      monthlyUsers: startup.monthlyUsers,
+      totalFundingRaised: startup.totalFundingRaised,
+      updatedAt: startup.updatedAt,
+      lastInspectedAt: startup.lastInspectedAt,
+      reviewCount: startup._count.reviews,
+      avgReviewRating: avgAgg._avg.overallRating,
+    });
+
+    return NextResponse.json({
+      ...startup,
+      badgeTier: effectiveBadgeTier,       // expiry-aware — downgrades automatically after 18 months
+      rawBadgeTier: startup.badgeTier,      // the un-downgraded value, for admin/debug use
+      healthScore,
+    });
   } catch (err) {
     console.error('GET /startups/[id] error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -77,7 +102,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
 
     const body = await request.json();
-    const { name, domain, description, stage, employeeCount, websiteUrl, monthlyUsers, monthlyRevenue, totalFundingRaised } = body;
+    const { name, domain, description, stage, employeeCount, websiteUrl, monthlyUsers, monthlyRevenue, totalFundingRaised, institutionPartnerId } = body;
 
     if (name && name.trim().length < 2) return NextResponse.json({ error: 'Name too short.' }, { status: 400 });
     if (name && name.trim().length > 100) return NextResponse.json({ error: 'Name too long.' }, { status: 400 });
@@ -96,6 +121,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         ...(monthlyUsers !== undefined ? { monthlyUsers: monthlyUsers ? parseInt(monthlyUsers) : null } : {}),
         ...(monthlyRevenue !== undefined ? { monthlyRevenue: monthlyRevenue ? parseFloat(monthlyRevenue) : null } : {}),
         ...(totalFundingRaised !== undefined ? { totalFundingRaised: totalFundingRaised ? parseFloat(totalFundingRaised) : null } : {}),
+        ...(institutionPartnerId !== undefined ? { institutionPartnerId: institutionPartnerId ? parseInt(institutionPartnerId) : null } : {}),
       },
     });
     return NextResponse.json(updated);

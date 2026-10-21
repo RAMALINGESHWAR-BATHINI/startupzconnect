@@ -14,11 +14,33 @@ export async function POST(request: Request) {
 
     if (!(await isEmailVerified(decoded.id, decoded.role))) return unverifiedResponse();
 
-    const { startupId, message } = await request.json();
+    const { startupId, message, fromStartupId } = await request.json();
     if (!startupId) return NextResponse.json({ error: 'startupId is required.' }, { status: 400 });
 
     const startup = await prisma.startup.findUnique({ where: { id: parseInt(startupId) } });
     if (!startup) return NextResponse.json({ error: 'Startup not found.' }, { status: 404 });
+
+    if (fromStartupId) {
+      // Startup-to-startup collaboration request.
+      if (parseInt(fromStartupId) === startup.id) {
+        return NextResponse.json({ error: 'A startup cannot collaborate with itself.' }, { status: 400 });
+      }
+      const fromStartup = await prisma.startup.findUnique({ where: { id: parseInt(fromStartupId) } });
+      if (!fromStartup) return NextResponse.json({ error: 'Your startup was not found.' }, { status: 404 });
+      if (fromStartup.founderId !== decoded.id && decoded.role !== 'ADMIN') {
+        return NextResponse.json({ error: 'You can only send collaboration requests on behalf of your own startup.' }, { status: 403 });
+      }
+
+      const existingS2S = await prisma.collaborationRequest.findFirst({
+        where: { startupId: startup.id, fromStartupId: fromStartup.id },
+      });
+      if (existingS2S) return NextResponse.json({ error: 'A collaboration request between these startups already exists.' }, { status: 409 });
+
+      const collab = await prisma.collaborationRequest.create({
+        data: { startupId: startup.id, fromStartupId: fromStartup.id, message: message?.trim() || null },
+      });
+      return NextResponse.json(collab, { status: 201 });
+    }
 
     // Fix #19: founders cannot collaborate with their own startup
     if (startup.founderId === decoded.id) {

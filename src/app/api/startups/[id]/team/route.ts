@@ -18,11 +18,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { name, role, linkedin, isFounder } = await request.json();
+    const { name, role, linkedin, photoUrl, isFounder } = await request.json();
     if (!name?.trim()) return NextResponse.json({ error: 'Name is required.' }, { status: 400 });
 
     const member = await prisma.teamMember.create({
-      data: { startupId: parseInt(id), name: name.trim(), role: role?.trim() || null, linkedin: linkedin || null, isFounder: !!isFounder },
+      data: { startupId: parseInt(id), name: name.trim(), role: role?.trim() || null, linkedin: linkedin || null, photoUrl: photoUrl?.trim() || null, isFounder: !!isFounder },
     });
     return NextResponse.json(member, { status: 201 });
   } catch (err) {

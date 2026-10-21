@@ -4,7 +4,7 @@ import prisma from '@/lib/prisma';
 import { generateToken, hoursFromNow } from '@/lib/tokens';
 import { sendMail } from '@/lib/mailer';
 
-const ALLOWED_ROLES = ['STUDENT', 'PROFESSIONAL', 'STARTUP', 'INVESTOR', 'OTHER'] as const;
+const ALLOWED_ROLES = ['STUDENT', 'PROFESSIONAL', 'STARTUP', 'INVESTOR', 'MENTOR', 'OTHER'] as const;
 
 export async function POST(request: Request) {
   try {

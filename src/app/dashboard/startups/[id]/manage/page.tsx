@@ -5,12 +5,12 @@ import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
 import Link from 'next/link';
 import { Building2, Loader2, AlertCircle, CheckCircle, ArrowLeft, Trash2, Users,
-  BookOpen, Plus, TrendingUp, Briefcase, UserPlus, ClipboardList } from 'lucide-react';
+  BookOpen, Plus, TrendingUp, Briefcase, UserPlus, ClipboardList, FileCheck, Handshake, ExternalLink, Check, X } from 'lucide-react';
 
 const DOMAINS = ['AI','FinTech','HealthTech','EdTech','SaaS','E-commerce','Logistics','CleanTech','GameTech','Other'];
 const STAGES  = ['IDEA','MVP','PRE_SEED','SEED','SERIES_A','SERIES_B','BOOTSTRAPPED'];
 
-type Tab = 'details' | 'team' | 'worklog' | 'traction';
+type Tab = 'details' | 'team' | 'worklog' | 'traction' | 'documents' | 'collabs';
 
 export default function ManageStartupPage() {
   const { id } = useParams();
@@ -27,12 +27,21 @@ export default function ManageStartupPage() {
   const [details, setDetails] = useState({ name:'', domain:'', description:'', stage:'IDEA', employeeCount:'1', websiteUrl:'', monthlyUsers:'', monthlyRevenue:'', totalFundingRaised:'' });
 
   // Team form
-  const [newMember, setNewMember] = useState({ name:'', role:'', linkedin:'', isFounder: false });
+  const [newMember, setNewMember] = useState({ name:'', role:'', linkedin:'', photoUrl:'', isFounder: false });
   const [addingMember, setAddingMember] = useState(false);
 
   // Worklog form
   const [logForm, setLogForm] = useState({ weekOf:'', summary:'', hoursSpent:'', milestone: false });
   const [addingLog, setAddingLog] = useState(false);
+
+  // Documents (Registered badge verification)
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [docForm, setDocForm] = useState({ docType: 'INCORPORATION', fileUrl: '' });
+  const [addingDoc, setAddingDoc] = useState(false);
+
+  // Startup-to-startup collaboration inbox
+  const [collabRequests, setCollabRequests] = useState<any[]>([]);
+  const [actingCollab, setActingCollab] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
     if (!authLoading && !user) { router.push('/login'); return; }
@@ -52,6 +61,8 @@ export default function ManageStartupPage() {
       })
       .catch(() => router.push('/dashboard'))
       .finally(() => setLoading(false));
+    api.get(`/startups/${id}/documents`).then(r => setDocuments(r.data || [])).catch(() => {});
+    api.get(`/startups/${id}/collab-requests`).then(r => setCollabRequests(r.data || [])).catch(() => {});
   }, [id, user, authLoading, router]);
 
   const flash = (msg: string, err = false) => { setFeedback(msg); setIsError(err); setTimeout(() => setFeedback(''), 4000); };
@@ -71,7 +82,7 @@ export default function ManageStartupPage() {
     try {
       const res = await api.post(`/startups/${id}/team`, newMember);
       setStartup((s: any) => ({ ...s, teamMembers: [...(s.teamMembers || []), res.data] }));
-      setNewMember({ name:'', role:'', linkedin:'', isFounder: false });
+      setNewMember({ name:'', role:'', linkedin:'', photoUrl:'', isFounder: false });
       flash('Team member added!');
     } catch (err: any) { flash(err?.response?.data?.error || 'Failed to add member.', true); }
     finally { setAddingMember(false); }
@@ -96,15 +107,36 @@ export default function ManageStartupPage() {
     finally { setAddingLog(false); }
   };
 
+  const addDocument = async (e: React.FormEvent) => {
+    e.preventDefault(); setAddingDoc(true);
+    try {
+      const res = await api.post(`/startups/${id}/documents`, docForm);
+      setDocuments(docs => [res.data, ...docs]);
+      setDocForm({ docType: 'INCORPORATION', fileUrl: '' });
+      flash('Document submitted for review!');
+    } catch (err: any) { flash(err?.response?.data?.error || 'Failed to submit document.', true); }
+    finally { setAddingDoc(false); }
+  };
+
+  const decideCollab = async (reqId: number, status: 'ACCEPTED' | 'REJECTED') => {
+    setActingCollab(a => ({ ...a, [reqId]: true }));
+    try {
+      await api.patch(`/startups/${id}/collab-requests/${reqId}`, { status });
+      setCollabRequests(rs => rs.map(r => r.id === reqId ? { ...r, status } : r));
+    } finally { setActingCollab(a => ({ ...a, [reqId]: false })); }
+  };
+
   if (authLoading || loading) return (
     <div className="flex items-center justify-center min-h-screen"><Loader2 className="w-8 h-8 text-indigo-400 animate-spin" /></div>
   );
 
   const TABS: { key: Tab; label: string; icon: any }[] = [
-    { key: 'details',  label: 'Details',  icon: Building2 },
-    { key: 'team',     label: `Team (${startup?.teamMembers?.length || 0})`, icon: Users },
-    { key: 'worklog',  label: 'Work Log', icon: BookOpen },
-    { key: 'traction', label: 'Traction', icon: TrendingUp },
+    { key: 'details',   label: 'Details',  icon: Building2 },
+    { key: 'team',      label: `Team (${startup?.teamMembers?.length || 0})`, icon: Users },
+    { key: 'worklog',   label: 'Work Log', icon: BookOpen },
+    { key: 'traction',  label: 'Traction', icon: TrendingUp },
+    { key: 'documents', label: `Documents (${documents.length})`, icon: FileCheck },
+    { key: 'collabs',   label: `Collab Requests (${collabRequests.filter((r:any)=>r.status==='PENDING').length})`, icon: Handshake },
   ];
 
   return (
@@ -213,6 +245,8 @@ export default function ManageStartupPage() {
               <input placeholder="Role (e.g. CTO)" value={newMember.role} onChange={e => setNewMember(m => ({...m,role:e.target.value}))}
                 className="px-4 py-2.5 rounded-lg bg-slate-900 border border-white/10 text-white placeholder:text-slate-600 focus:outline-none focus:border-teal-500 text-sm" />
               <input placeholder="LinkedIn URL" value={newMember.linkedin} onChange={e => setNewMember(m => ({...m,linkedin:e.target.value}))}
+                className="px-4 py-2.5 rounded-lg bg-slate-900 border border-white/10 text-white placeholder:text-slate-600 focus:outline-none focus:border-teal-500 text-sm" />
+              <input placeholder="Photo URL (optional)" value={newMember.photoUrl} onChange={e => setNewMember(m => ({...m,photoUrl:e.target.value}))}
                 className="px-4 py-2.5 rounded-lg bg-slate-900 border border-white/10 text-white placeholder:text-slate-600 focus:outline-none focus:border-teal-500 text-sm" />
               <label className="flex items-center gap-3 px-4 py-2.5 rounded-lg border border-white/10 cursor-pointer">
                 <input type="checkbox" checked={newMember.isFounder} onChange={e => setNewMember(m => ({...m,isFounder:e.target.checked}))} className="accent-teal-500" />
@@ -328,6 +362,82 @@ export default function ManageStartupPage() {
             </button>
           </div>
         </form>
+      )}
+
+      {/* DOCUMENTS TAB */}
+      {tab === 'documents' && (
+        <div className="space-y-5">
+          <div className="p-5 rounded-2xl border border-indigo-500/20 bg-indigo-500/5">
+            <p className="text-sm text-slate-300">Submit a document link (Google Drive, Dropbox, etc. — set to "anyone with the link can view"). Our team verifies it manually; approval unlocks the <span className="text-indigo-300 font-medium">Registered</span> badge.</p>
+          </div>
+          <form onSubmit={addDocument} className="p-5 rounded-2xl border border-white/10 bg-white/[0.02] space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <select value={docForm.docType} onChange={e => setDocForm(f => ({...f, docType: e.target.value}))}
+                className="px-4 py-2.5 rounded-lg bg-slate-900 border border-white/10 text-white text-sm focus:outline-none sm:col-span-1">
+                <option value="INCORPORATION">Certificate of Incorporation</option>
+                <option value="GST">GST Registration</option>
+                <option value="DPIIT">DPIIT Startup India Cert.</option>
+                <option value="SHOP_ACT">Shop & Establishment Act</option>
+                <option value="OTHER">Other</option>
+              </select>
+              <input required type="url" placeholder="Link to document *" value={docForm.fileUrl} onChange={e => setDocForm(f => ({...f, fileUrl: e.target.value}))}
+                className="px-4 py-2.5 rounded-lg bg-slate-900 border border-white/10 text-white placeholder:text-slate-600 text-sm sm:col-span-2" />
+            </div>
+            <button type="submit" disabled={addingDoc}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white text-sm font-medium">
+              {addingDoc ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Submit for Verification
+            </button>
+          </form>
+          <div className="space-y-3">
+            {documents.map((d: any) => (
+              <div key={d.id} className="flex items-center justify-between p-4 rounded-xl border border-white/5 bg-white/[0.02]">
+                <div>
+                  <p className="text-sm font-medium text-white">{d.docType.replace('_',' ')}</p>
+                  <a href={d.fileUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
+                    View link <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+                <span className={`badge text-xs ${d.status === 'VERIFIED' ? 'badge-green' : d.status === 'REJECTED' ? 'badge-gray' : 'badge-amber'}`}>{d.status}</span>
+              </div>
+            ))}
+            {documents.length === 0 && <p className="text-center text-slate-500 text-sm py-6">No documents submitted yet.</p>}
+          </div>
+        </div>
+      )}
+
+      {/* COLLAB REQUESTS TAB */}
+      {tab === 'collabs' && (
+        <div className="space-y-3">
+          {collabRequests.length === 0 && <p className="text-center text-slate-500 text-sm py-10">No collaboration requests yet.</p>}
+          {collabRequests.map((r: any) => (
+            <div key={r.id} className="p-5 rounded-2xl border border-white/5 bg-white/[0.02]">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center text-white font-bold flex-shrink-0">
+                  {(r.fromStartup?.name || r.user?.name || '?').charAt(0)}
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-white">
+                    {r.fromStartup ? `${r.fromStartup.name} (startup)` : r.user?.name}
+                  </p>
+                  <span className={`badge text-xs ${r.status === 'ACCEPTED' ? 'badge-green' : r.status === 'REJECTED' ? 'badge-gray' : 'badge-amber'}`}>{r.status}</span>
+                </div>
+              </div>
+              {r.message && <p className="text-sm text-slate-400 mb-3">{r.message}</p>}
+              {r.status === 'PENDING' && (
+                <div className="flex gap-3">
+                  <button onClick={() => decideCollab(r.id, 'ACCEPTED')} disabled={actingCollab[r.id]}
+                    className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white text-xs font-medium">
+                    <Check className="w-3.5 h-3.5" /> Accept
+                  </button>
+                  <button onClick={() => decideCollab(r.id, 'REJECTED')} disabled={actingCollab[r.id]}
+                    className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-60 text-slate-300 text-xs font-medium">
+                    <X className="w-3.5 h-3.5" /> Decline
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

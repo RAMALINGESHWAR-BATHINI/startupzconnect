@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { Rocket, Menu, X, LogOut, LayoutDashboard, User as UserIcon, Settings,
-  ChevronDown, PlusCircle, TrendingUp, Shield, Building2 } from 'lucide-react';
+  ChevronDown, PlusCircle, TrendingUp, Shield, Building2, Users, CalendarDays, Landmark, Lightbulb, Newspaper } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { BadgeTier } from './ui/Badge';
 
@@ -12,17 +12,28 @@ const NAV_LINKS = [
   { href: '/investments', label: 'Invest' },
 ];
 
+const MORE_LINKS = [
+  { href: '/cofounders', label: 'Find a Co-founder', icon: Users },
+  { href: '/mentors',    label: 'Mentors', icon: Lightbulb },
+  { href: '/events',     label: 'Events', icon: CalendarDays },
+  { href: '/grants',     label: 'Grants & Schemes', icon: Landmark },
+  { href: '/press',      label: 'Press Requests', icon: Newspaper },
+];
+
 export default function Navbar() {
   const { user, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const moreRef = useRef<HTMLDivElement>(null);
   const isFounder = user?.role === 'STARTUP' || user?.role === 'ADMIN';
   const isInvestor = user?.role === 'INVESTOR' || user?.role === 'ADMIN';
 
   useEffect(() => {
     const h = (e: MouseEvent) => {
       if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) setUserMenuOpen(false);
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) setMoreOpen(false);
     };
     document.addEventListener('mousedown', h);
     return () => document.removeEventListener('mousedown', h);
@@ -44,6 +55,21 @@ export default function Navbar() {
           {NAV_LINKS.map(l => (
             <Link key={l.href} href={l.href} className="hover:text-white transition-colors">{l.label}</Link>
           ))}
+          <div className="relative" ref={moreRef}>
+            <button onClick={() => setMoreOpen(o => !o)} className="flex items-center gap-1 hover:text-white transition-colors">
+              More <ChevronDown className={`w-3.5 h-3.5 transition-transform ${moreOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {moreOpen && (
+              <div className="absolute left-0 mt-3 w-56 rounded-2xl bg-slate-900 border border-white/10 p-2 shadow-2xl backdrop-blur-xl animate-fade-in">
+                {MORE_LINKS.map(l => (
+                  <Link key={l.href} href={l.href} onClick={() => setMoreOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-white/5 transition-colors">
+                    <l.icon className="w-4 h-4" /> {l.label}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
           {user && <Link href="/dashboard" className="hover:text-white transition-colors">Dashboard</Link>}
         </div>
 
@@ -134,6 +160,14 @@ export default function Navbar() {
             <Link key={l.href} href={l.href} onClick={() => setOpen(false)}
               className="px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 transition-colors">{l.label}</Link>
           ))}
+          <div className="my-1 border-t border-white/5" />
+          {MORE_LINKS.map(l => (
+            <Link key={l.href} href={l.href} onClick={() => setOpen(false)}
+              className="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 transition-colors">
+              <l.icon className="w-4 h-4" /> {l.label}
+            </Link>
+          ))}
+          <div className="my-1 border-t border-white/5" />
           {user ? (<>
             <Link href="/dashboard" onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/5">Dashboard</Link>
             <Link href="/dashboard/profile" onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/5">Profile</Link>

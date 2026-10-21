@@ -110,3 +110,70 @@ nothing else in the app needs to change.
 
 Payment collection is still not wired to a gateway — see the monetization
 gap noted separately.
+
+## This session's additions (core features, trust-system completions, polish)
+
+### Core platform features (previously designed, now built)
+- **Co-founder matching** — `/cofounders`: post a listing (skills offered/wanted,
+  commitment, domain, pitch), browse others. `CofounderListing` model.
+- **Startup-to-startup collaboration** — the Collaborate panel on a startup's
+  page now lets a founder send a request *as their own startup* (not just as
+  themselves). Founders review these in Manage → Collab Requests, accept/reject.
+- **Mentor role** — new `MENTOR` role at registration, a mentor profile page
+  (`/dashboard/mentor-profile`), and a public directory (`/mentors`).
+- **Events** — `/events`: startups or the community post demo days, pitch
+  competitions, meetups; anyone can RSVP.
+- **Grants & government schemes** — `/grants`: admin-curated list (`Grant`
+  model) with eligibility, amount range, deadline, apply link.
+- **Press/media board** — `/press`: journalists post what they're looking for;
+  startups respond directly.
+- **Institution partners** — `InstitutionPartner` model + admin panel
+  (`/admin/institutions`) to register incubators/accelerators and see how many
+  startups are tagged to each — the bulk-onboarding channel we discussed.
+- **Startup Health Score** — computed server-side (`src/lib/badges.ts`,
+  `computeHealthScore`) from verification tier, inspection score, team size,
+  traction, reviews, and activity recency. Shown on every startup profile.
+
+### Trust-system pieces (previously half-built, now complete)
+- **Founder responses to reviews** — founders can now post one public response
+  per review directly from the startup page.
+- **Review flagging** — a Report button on every review (`Report` model,
+  generic — reusable for other content types later). Flagging marks the review
+  "Under review" but never auto-removes it; an admin queue at `/admin/reports`
+  makes the final call (policy §6.3).
+- **Badge expiry / re-inspection** — Field Verified and above badges now
+  auto-downgrade to Registered after 18 months with no new inspection
+  (`isBadgeExpired` / `displayBadgeTier` in `src/lib/badges.ts`), applied
+  consistently across the startup detail API, listing API, and jobs API.
+- **Document verification for the Registered badge** — founders submit a
+  document link (Drive/Dropbox — real file upload still needs R2) at
+  Manage → Documents; an admin queue at `/admin/documents` verifies it, which
+  unlocks the Registered badge automatically on first approval.
+
+### Polish
+- `resumeUrl` on job applications is now actually collected (paste-a-link,
+  pending real file upload) and passed to the API.
+- Team member photos: `photoUrl` field now has an input in Manage → Team
+  (again, link-based until R2).
+- `sitemap.xml` and `robots.ts` — real, server-generated, submitted routes
+  exclude private areas (dashboard/admin/agent/api).
+- Per-page metadata: `/startups` and `/jobs` listings were split into a thin
+  server component (`page.tsx`, holds `export const metadata`) + a client
+  component (`StartupsClient.tsx` / `JobsClient.tsx`, holds the interactive
+  UI). This is the pattern to repeat for other pages that still share the
+  root layout's generic title/description — not yet done for every page,
+  since each one needs the same split and this was already a very large
+  session.
+- **Tests**: `vitest` added as a dev dependency with real unit tests for the
+  two pure-function utility modules (`src/lib/tokens.ts`,
+  `src/lib/badges.ts`) — token format/uniqueness, badge expiry math, and
+  health score bounds/ordering. Run with `npm test`. This is a starting
+  point, not full coverage — API routes and React components still have none.
+
+## Still not done (carried over, unchanged from before)
+- Cloudflare R2 file upload — the real blocker behind every "paste a link"
+  workaround above (documents, resumes, team photos, inspection photos).
+- Office check-in QR/code UI (the API exists; reviews check for it but don't
+  require it yet).
+- Payment gateway integration for inspection fees.
+- Email provider wiring (still logs to console — see the mailer section above).

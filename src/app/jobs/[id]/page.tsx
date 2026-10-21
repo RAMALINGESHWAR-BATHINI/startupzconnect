@@ -14,6 +14,7 @@ export default function JobDetailPage() {
   const [job, setJob] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [coverNote, setCoverNote] = useState('');
+  const [resumeUrl, setResumeUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [isError, setIsError] = useState(false);
@@ -31,7 +32,7 @@ export default function JobDetailPage() {
     if (!user) { router.push('/login'); return; }
     setSubmitting(true); setFeedback(''); setIsError(false);
     try {
-      await api.post(`/jobs/${id}/apply`, { coverNote });
+      await api.post(`/jobs/${id}/apply`, { coverNote, resumeUrl: resumeUrl || undefined });
       setApplied(true);
       setFeedback('Application submitted! The startup will review your profile.');
     } catch (err: any) {
@@ -119,6 +120,9 @@ export default function JobDetailPage() {
                   <textarea value={coverNote} onChange={e => setCoverNote(e.target.value)} rows={5}
                     placeholder="Tell them why you're a great fit for this role. What experience or skills do you bring? What excites you about this startup?"
                     className="w-full px-4 py-3 rounded-lg bg-slate-900 border border-white/10 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 text-sm resize-none transition-colors" />
+                  <input type="url" value={resumeUrl} onChange={e => setResumeUrl(e.target.value)}
+                    placeholder="Link to your resume (Google Drive, LinkedIn, portfolio, etc.) — optional"
+                    className="w-full px-4 py-2.5 rounded-lg bg-slate-900 border border-white/10 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 text-sm transition-colors" />
                   {!user ? (
                     <Link href="/login" className="block text-center py-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm transition-colors">
                       Log in to Apply

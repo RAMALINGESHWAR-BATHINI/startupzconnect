@@ -7,7 +7,7 @@ import Link from 'next/link';
 import {
   Building2, Briefcase, Users, TrendingUp, ArrowLeft, Loader2,
   ExternalLink, Globe, MapPin, Calendar, Star, CheckCircle,
-  ClipboardList, UserPlus, BookOpen, AlertCircle, Clock
+  ClipboardList, UserPlus, BookOpen, AlertCircle, Clock, Flag, Gauge
 } from 'lucide-react';
 import { BadgeTier, StageBadge, OriginBadge } from '@/components/ui/Badge';
 import { StarDisplay } from '@/components/ui/StarRating';
@@ -50,10 +50,17 @@ export default function StartupDetailPage() {
   const [activeTab, setActiveTab] = useState<'overview'|'team'|'worklog'|'reviews'|'inspection'>('overview');
   const [loading, setLoading] = useState(true);
   const [collabMsg, setCollabMsg] = useState('');
+  const [myStartups, setMyStartups] = useState<any[]>([]);
+  const [collabAsStartupId, setCollabAsStartupId] = useState('');
   const [investAmount, setInvestAmount] = useState('');
   const [investMsg, setInvestMsg] = useState('');
   const [feedback, setFeedback] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState<Record<string, boolean>>({});
+  const [responseText, setResponseText] = useState<Record<number, string>>({});
+  const [respondingTo, setRespondingTo] = useState<number | null>(null);
+  const [reportingId, setReportingId] = useState<number | null>(null);
+  const [reportReason, setReportReason] = useState('');
+  const [reportSentIds, setReportSentIds] = useState<number[]>([]);
 
   useEffect(() => {
     Promise.all([
@@ -71,6 +78,13 @@ export default function StartupDetailPage() {
       .finally(() => setLoading(false));
   }, [id, router]);
 
+  useEffect(() => {
+    if (!user || user.role !== 'STARTUP') return;
+    api.get('/startups', { params: { limit: 50 } })
+      .then(r => setMyStartups((r.data.startups || []).filter((s: any) => s.founder?.id === user.id && String(s.id) !== String(id))))
+      .catch(() => {});
+  }, [user, id]);
+
   const submit = async (type: string, data: object) => {
     if (!user) { router.push('/login'); return; }
     setSubmitting(s => ({ ...s, [type]: true }));
@@ -81,6 +95,33 @@ export default function StartupDetailPage() {
     } catch (err: any) {
       setFeedback(f => ({ ...f, [type]: err?.response?.data?.error || 'Something went wrong.' }));
     } finally { setSubmitting(s => ({ ...s, [type]: false })); }
+  };
+
+  const submitResponse = async (reviewId: number) => {
+    const text = responseText[reviewId];
+    if (!text?.trim()) return;
+    try {
+      await api.post(`/startups/${id}/reviews/${reviewId}/respond`, { response: text.trim() });
+      setReviews(rs => rs.map(r => r.id === reviewId ? { ...r, startupResponse: text.trim() } : r));
+      setRespondingTo(null);
+    } catch (err: any) {
+      alert(err?.response?.data?.error || 'Failed to post response.');
+    }
+  };
+
+  const submitReport = async (reviewId: number) => {
+    if (!user) { router.push('/login'); return; }
+    if (!reportReason.trim() || reportReason.trim().length < 10) {
+      alert('Please describe the issue in at least 10 characters.'); return;
+    }
+    try {
+      await api.post('/reports', { contentType: 'REVIEW', contentId: reviewId, reason: reportReason.trim() });
+      setReportSentIds(ids => [...ids, reviewId]);
+      setReportingId(null);
+      setReportReason('');
+    } catch (err: any) {
+      alert(err?.response?.data?.error || 'Failed to report.');
+    }
   };
 
   if (loading) return (
@@ -383,11 +424,55 @@ export default function StartupDetailPage() {
                         <span>Product: {'★'.repeat(r.productRating)}{'☆'.repeat(5-r.productRating)}</span>
                       </div>
                       <p className="text-sm text-slate-300 leading-relaxed">{r.reviewText}</p>
+
+                      {/* Report / flag */}
+                      {user && (
+                        <div className="mt-3">
+                          {r.isFlagged && <span className="badge badge-amber text-xs mb-2">⚑ Under review</span>}
+                          {reportSentIds.includes(r.id) ? (
+                            <p className="text-xs text-slate-500">Reported — our team will review this.</p>
+                          ) : reportingId === r.id ? (
+                            <div className="flex flex-col gap-2 mt-1">
+                              <textarea value={reportReason} onChange={e => setReportReason(e.target.value)} rows={2}
+                                placeholder="What's wrong with this review? (min 10 characters)"
+                                className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-white/10 text-white placeholder:text-slate-600 text-xs resize-none focus:outline-none focus:border-red-500" />
+                              <div className="flex gap-2">
+                                <button onClick={() => submitReport(r.id)} className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-medium">Submit Report</button>
+                                <button onClick={() => { setReportingId(null); setReportReason(''); }} className="px-3 py-1.5 rounded-lg border border-white/10 text-slate-400 text-xs">Cancel</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button onClick={() => setReportingId(r.id)} className="flex items-center gap-1 text-xs text-slate-600 hover:text-red-400 transition-colors">
+                              <Flag className="w-3 h-3" /> Report
+                            </button>
+                          )}
+                        </div>
+                      )}
+
                       {r.startupResponse && (
                         <div className="mt-3 pt-3 border-t border-white/5">
                           <p className="text-xs text-indigo-400 font-medium mb-1">Response from {startup.name}:</p>
                           <p className="text-xs text-slate-400">{r.startupResponse}</p>
                         </div>
+                      )}
+
+                      {/* Founder response form */}
+                      {isOwner && !r.startupResponse && (
+                        respondingTo === r.id ? (
+                          <div className="mt-3 pt-3 border-t border-white/5 flex flex-col gap-2">
+                            <textarea value={responseText[r.id] || ''} onChange={e => setResponseText(t => ({ ...t, [r.id]: e.target.value }))} rows={2}
+                              placeholder="Write a public response to this review (min 10 characters)..."
+                              className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-white/10 text-white placeholder:text-slate-600 text-xs resize-none focus:outline-none focus:border-indigo-500" />
+                            <div className="flex gap-2">
+                              <button onClick={() => submitResponse(r.id)} className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium">Post Response</button>
+                              <button onClick={() => setRespondingTo(null)} className="px-3 py-1.5 rounded-lg border border-white/10 text-slate-400 text-xs">Cancel</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button onClick={() => setRespondingTo(r.id)} className="mt-3 text-xs text-indigo-400 hover:text-indigo-300">
+                            + Respond to this review
+                          </button>
+                        )
                       )}
                     </div>
                   ))}
@@ -464,6 +549,25 @@ export default function StartupDetailPage() {
 
         {/* ── SIDEBAR: Action panels ── */}
         <div className="space-y-5">
+          {/* Health Score */}
+          {typeof startup.healthScore === 'number' && (
+            <div className="p-5 rounded-2xl border border-indigo-500/20 bg-indigo-500/5">
+              <div className="flex items-center gap-2 mb-3">
+                <Gauge className="w-4 h-4 text-indigo-400" />
+                <h3 className="text-sm font-semibold text-indigo-300">Startup Health Score</h3>
+              </div>
+              <div className="flex items-end gap-2 mb-2">
+                <span className="text-3xl font-bold text-white">{startup.healthScore}</span>
+                <span className="text-slate-500 text-sm mb-1">/ 100</span>
+              </div>
+              <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-indigo-600 to-purple-500 rounded-full transition-all"
+                  style={{ width: `${startup.healthScore}%` }} />
+              </div>
+              <p className="text-xs text-slate-500 mt-2">Verification, traction, reviews, and activity combined.</p>
+            </div>
+          )}
+
           {/* Stats */}
           <div className="p-5 rounded-2xl border border-white/5 bg-white/[0.02]">
             <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">At a Glance</h3>
@@ -493,6 +597,16 @@ export default function StartupDetailPage() {
               <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
                 <Users className="w-4 h-4 text-purple-400" /> Collaborate
               </h3>
+              {myStartups.length > 0 && (
+                <div className="mb-3">
+                  <label className="block text-xs text-slate-500 mb-1.5">Send as</label>
+                  <select value={collabAsStartupId} onChange={e => setCollabAsStartupId(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-white/10 text-white text-sm focus:outline-none focus:border-purple-500 transition-colors">
+                    <option value="">Myself ({user?.name})</option>
+                    {myStartups.map((s: any) => <option key={s.id} value={s.id}>My startup — {s.name}</option>)}
+                  </select>
+                </div>
+              )}
               <textarea value={collabMsg} onChange={e => setCollabMsg(e.target.value)} rows={3}
                 placeholder="What would you like to work on together?"
                 className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-white/10 text-white placeholder:text-slate-600 focus:outline-none focus:border-purple-500 text-sm resize-none mb-3 transition-colors" />
@@ -501,7 +615,11 @@ export default function StartupDetailPage() {
                   {feedback.collaboration}
                 </p>
               )}
-              <button onClick={() => submit('collaboration', { startupId: startup.id, message: collabMsg })}
+              <button onClick={() => submit('collaboration', {
+                  startupId: startup.id,
+                  message: collabMsg,
+                  ...(collabAsStartupId ? { fromStartupId: parseInt(collabAsStartupId) } : {}),
+                })}
                 disabled={submitting.collaboration}
                 className="w-full py-2 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-60 text-white text-sm font-medium transition-colors flex items-center justify-center gap-2">
                 {submitting.collaboration ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
@@ -509,6 +627,7 @@ export default function StartupDetailPage() {
               </button>
             </div>
           )}
+
 
           {/* Invest */}
           {!isOwner && (

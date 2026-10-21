@@ -9,7 +9,8 @@ const roles = [
   { value: 'PROFESSIONAL', label: 'Working Professional', desc: 'Apply for jobs, offer collaboration, mentor' },
   { value: 'STARTUP',      label: 'Startup Founder', desc: 'List your startup, post jobs, raise funds' },
   { value: 'INVESTOR',     label: 'Investor', desc: 'Discover and invest in promising startups' },
-  { value: 'OTHER',        label: 'Other', desc: 'Researcher, mentor, journalist, accelerator, etc.' },
+  { value: 'MENTOR',       label: 'Mentor', desc: 'Give founders your time and experience, not money' },
+  { value: 'OTHER',        label: 'Other', desc: 'Researcher, journalist, accelerator, institution, etc.' },
 ];
 
 export default function RegisterPage() {
