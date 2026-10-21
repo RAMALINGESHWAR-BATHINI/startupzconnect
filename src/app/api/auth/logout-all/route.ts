@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
 import { verifyAccessToken, clearAuthCookies } from '@/lib/auth';
+import { revokeAllSessionsForUser } from '@/lib/sessions';
 
 export async function POST() {
   try {
@@ -11,9 +12,8 @@ export async function POST() {
     const decoded = verifyAccessToken(token) as any;
     if (!decoded) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // Clearing the stored refresh token invalidates every other session —
-    // any device using the old refresh token will be forced to log in again.
-    await prisma.user.update({ where: { id: decoded.id }, data: { refreshToken: null } });
+    // Revoke every server-side session for this user so old tokens can't be reused.
+    await revokeAllSessionsForUser(decoded.id);
     await clearAuthCookies();
 
     return NextResponse.json({ message: 'Logged out of all devices.' });

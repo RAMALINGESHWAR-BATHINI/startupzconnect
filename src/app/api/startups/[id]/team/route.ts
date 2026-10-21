@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifyAccessToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
+import { isSafeHttpUrl } from '@/lib/url-safety';
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -21,8 +22,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const { name, role, linkedin, photoUrl, isFounder } = await request.json();
     if (!name?.trim()) return NextResponse.json({ error: 'Name is required.' }, { status: 400 });
 
+    if (linkedin && !isSafeHttpUrl(linkedin)) {
+      return NextResponse.json({ error: 'LinkedIn must be a valid http(s) link.' }, { status: 400 });
+    }
+
     const member = await prisma.teamMember.create({
-      data: { startupId: parseInt(id), name: name.trim(), role: role?.trim() || null, linkedin: linkedin || null, photoUrl: photoUrl?.trim() || null, isFounder: !!isFounder },
+      data: {
+        startupId: parseInt(id),
+        name: name.trim(),
+        role: role?.trim() || null,
+        linkedin: linkedin || null,
+        photoUrl: photoUrl?.trim() || null,
+        isFounder: !!isFounder,
+      },
     });
     return NextResponse.json(member, { status: 201 });
   } catch (err) {
@@ -46,7 +58,16 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     }
 
     const { memberId } = await request.json();
-    await prisma.teamMember.delete({ where: { id: memberId } });
+    if (!memberId) return NextResponse.json({ error: 'memberId is required.' }, { status: 400 });
+
+    // IDOR fix: verify the member actually belongs to this startup before deleting.
+    const member = await prisma.teamMember.findUnique({ where: { id: parseInt(memberId) } });
+    if (!member) return NextResponse.json({ error: 'Team member not found.' }, { status: 404 });
+    if (member.startupId !== startup.id) {
+      return NextResponse.json({ error: 'Forbidden: member does not belong to this startup.' }, { status: 403 });
+    }
+
+    await prisma.teamMember.delete({ where: { id: parseInt(memberId) } });
     return NextResponse.json({ message: 'Team member removed.' });
   } catch (err) {
     console.error('DELETE /team error:', err);

@@ -1,31 +1,53 @@
 import jwt from 'jsonwebtoken';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { createSession, getSession, revokeSession, revokeAllSessionsForUser } from './sessions';
 
-const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET;
-const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET;
+// Only HS256 is permitted — algorithm confusion / `alg:none` attacks are rejected at the verifier.
+export const JWT_ALGORITHMS: jwt.Algorithm[] = ['HS256'];
 
 function getAccessSecret(): string {
-  if (!ACCESS_TOKEN_SECRET) throw new Error('Missing ACCESS_TOKEN_SECRET environment variable');
-  return ACCESS_TOKEN_SECRET;
+  const secret = process.env.ACCESS_TOKEN_SECRET;
+  if (!secret) throw new Error('Missing ACCESS_TOKEN_SECRET environment variable');
+  return secret;
 }
 
 function getRefreshSecret(): string {
-  if (!REFRESH_TOKEN_SECRET) throw new Error('Missing REFRESH_TOKEN_SECRET environment variable');
-  return REFRESH_TOKEN_SECRET;
+  const secret = process.env.REFRESH_TOKEN_SECRET;
+  if (!secret) throw new Error('Missing REFRESH_TOKEN_SECRET environment variable');
+  return secret;
 }
 
+/** Token purpose claim — every JWT carries a purpose so access/refresh tokens cannot be swapped. */
+export type TokenPurpose = 'access' | 'refresh';
+
 export const signAccessToken = (payload: object) => {
-  return jwt.sign(payload, getAccessSecret(), { expiresIn: '15m' });
+  return jwt.sign({ ...payload, purpose: 'access' }, getAccessSecret(), {
+    algorithm: 'HS256',
+    expiresIn: '15m',
+    issuer: 'startupzconnect',
+    audience: 'startupzconnect-api',
+  });
 };
 
 export const signRefreshToken = (payload: object) => {
-  return jwt.sign(payload, getRefreshSecret(), { expiresIn: '7d' });
+  return jwt.sign({ ...payload, purpose: 'refresh' }, getRefreshSecret(), {
+    algorithm: 'HS256',
+    expiresIn: '7d',
+    issuer: 'startupzconnect',
+    audience: 'startupzconnect-api',
+  });
+};
+
+const baseVerifyOpts = {
+  algorithms: [...JWT_ALGORITHMS],
+  issuer: 'startupzconnect',
+  audience: 'startupzconnect-api',
 };
 
 export const verifyAccessToken = (token: string) => {
   try {
-    return jwt.verify(token, getAccessSecret());
+    return jwt.verify(token, getAccessSecret(), { ...baseVerifyOpts }) as { purpose?: TokenPurpose; id?: number; email?: string; role?: string } | null;
   } catch {
     return null;
   }
@@ -33,15 +55,18 @@ export const verifyAccessToken = (token: string) => {
 
 export const verifyRefreshToken = (token: string) => {
   try {
-    return jwt.verify(token, getRefreshSecret());
+    return jwt.verify(token, getRefreshSecret(), { ...baseVerifyOpts }) as { purpose?: TokenPurpose; id?: number } | null;
   } catch {
     return null;
   }
 };
 
+export function verifyTokenPurpose(decoded: unknown, expected: TokenPurpose): boolean {
+  return typeof decoded === 'object' && decoded !== null && (decoded as Record<string, unknown>).purpose === expected;
+}
+
 const isProd = process.env.NODE_ENV === 'production';
 
-// Attach auth cookies directly onto a NextResponse object (Fix #1)
 export const attachAuthCookies = (response: NextResponse, accessToken: string, refreshToken: string) => {
   response.cookies.set('accessToken', accessToken, {
     httpOnly: true,
@@ -64,3 +89,21 @@ export const clearAuthCookies = async () => {
   cookieStore.delete('accessToken');
   cookieStore.delete('refreshToken');
 };
+
+/** Issue a new session row + cookies after login/refresh. Returns the session record. */
+export async function issueAuthSession(userId: number, deviceInfo?: string, ip?: string) {
+  const accessToken = signAccessToken({ id: userId });
+  const refreshToken = signRefreshToken({ id: userId });
+
+  const session = await createSession({
+    userId,
+    token: refreshToken, // raw token; sessions.ts hashes it before storage
+    deviceInfo,
+    ip,
+    ttlDays: 7,
+  });
+
+  return { accessToken, refreshToken, session };
+}
+
+export type { SessionRecord } from './sessions';

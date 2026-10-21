@@ -26,14 +26,22 @@ model User {
   portfolio    String?
   avatarUrl    String?
 
-  // Investor-specific
-  investorVerified    Boolean @default(false)
-  investorNetWorth    String? // bracket e.g. "1Cr-5Cr"
-  investorThesis      String?
-  investorTicketSize  String?
-  investorSectors     String?
-  investorPastDeals   String?
-  sebiRegNumber       String?
+  // Account status & admin assignment
+  status             String   @default("ACTIVE")   // ACTIVE | SUSPENDED
+  organization       String?
+
+  // Investor verification
+  investorVerified             Boolean   @default(false)
+  investorVerificationStatus   String    @default("NONE")   // NONE | PENDING | VERIFIED | REJECTED | REVOKED
+  investorNetWorth             String?
+  investorThesis               String?
+  investorTicketSize           String?
+  investorSectors              String?
+  investorPastDeals            String?
+  sebiRegNumber                String?
+  investorReviewedBy           Int?
+  investorReviewedAt           DateTime?
+  investorReviewNotes          String?
 
   // Mentor-specific
   mentorExpertise     String? // comma-separated domains e.g. "AI,FinTech"
@@ -43,7 +51,8 @@ model User {
 
   termsAcceptedAt     DateTime?
 
-  refreshToken String?
+  // Sessions (replaces single refreshToken column — multi-device support)
+  sessions            Session[]
 
   // Email verification
   emailVerified       Boolean   @default(false)
@@ -71,6 +80,7 @@ model User {
   pressRequests         PressRequest[]
   reportsFiled          Report[]
   notifications         Notification[]
+  adminAssignments      AdminRoleAssignment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -94,6 +104,7 @@ model Startup {
   institutionPartnerId Int?
   institutionPartner   InstitutionPartner? @relation(fields: [institutionPartnerId], references: [id])
   registrationId   String? // CIN / LLPIN / GST etc.
+  registrationIdType String? // CIN | LLPIN | GSTIN | DPIIT | UDYAM
   registeredAddress String?
   operationalAddress String?
   foundedDate      String?
@@ -557,4 +568,140 @@ model Notification {
   createdAt DateTime @default(now())
 
   @@index([userId, isRead])
+}
+
+// ─────────────────────────────────────────
+// ADMIN ROLE ASSIGNMENTS
+// ─────────────────────────────────────────
+model AdminRoleAssignment {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        String   // one of ALL_ADMIN_ROLES in src/lib/permissions.ts
+  grantedById Int?
+  approvalId  Int?
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, role])
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────
+// AUDIT LOG (append-only)
+// ─────────────────────────────────────────
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  createdAt  DateTime @default(now())
+  category   String   // ADMIN_ACTION | SECURITY | AUTHZ_FAILURE | DATA_EXPORT | APPROVAL | ERROR
+  action     String
+  severity   String   @default("INFO")    // INFO | WARN | HIGH
+  outcome    String   @default("SUCCESS") // SUCCESS | FAILURE | DENIED
+  actorId    Int?
+  actorLabel String?
+  targetType String?
+  targetId   String?
+  ip         String?
+  metadata   String?  // redacted JSON (see src/lib/redact.ts)
+
+  @@index([createdAt])
+  @@index([category, createdAt])
+  @@index([action])
+  @@index([actorId])
+}
+
+// ─────────────────────────────────────────
+// APPROVAL REQUESTS
+// ─────────────────────────────────────────
+model ApprovalRequest {
+  id               Int       @id @default(autoincrement())
+  type             String    // ROLE_ASSIGNMENT | DATA_EXPORT
+  status           String    @default("PENDING") // PENDING | APPROVED | REJECTED | EXECUTED | EXECUTION_FAILED | EXPIRED
+  requestedById    Int
+  reason           String
+  payload          String    // JSON, validated by approval-policy.ts
+  decidedById      Int?
+  decidedAt        DateTime?
+  decisionNote     String?
+  executedAt       DateTime?
+  executionOutcome String?
+  expiresAt        DateTime
+  createdAt        DateTime  @default(now())
+
+  @@index([status])
+  @@index([requestedById])
+}
+
+// ─────────────────────────────────────────
+// SECURITY INCIDENTS
+// ─────────────────────────────────────────
+model SecurityIncident {
+  id             Int       @id @default(autoincrement())
+  title          String
+  description    String
+  severity       String    @default("MEDIUM") // LOW | MEDIUM | HIGH | CRITICAL
+  status         String    @default("OPEN")   // OPEN | CONTAINED | RESOLVED
+  createdById    Int
+  resolutionNote String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @default(now()) @updatedAt
+  resolvedAt     DateTime?
+
+  @@index([status])
+}
+
+// ─────────────────────────────────────────
+// SITE SETTINGS (design/content config)
+// ─────────────────────────────────────────
+model SiteSetting {
+  key         String   @id
+  draft       String   @default("{}")
+  published   String?
+  version     Int      @default(0)
+  updatedBy   Int?
+  updatedAt   DateTime @default(now()) @updatedAt
+  publishedAt DateTime?
+}
+
+// ─────────────────────────────────────────
+// SITE SETTING HISTORY (append-only)
+// ─────────────────────────────────────────
+model SiteSettingHistory {
+  id          Int      @id @default(autoincrement())
+  key         String
+  version     Int
+  value       String
+  publishedBy Int?
+  createdAt   DateTime @default(now())
+
+  @@unique([key, version])
+}
+
+// ─────────────────────────────────────────
+// SESSIONS (multi-device, replaces single refreshToken)
+// ─────────────────────────────────────────
+model Session {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String   // bcrypt hash of the refresh token
+  deviceInfo String?
+  ip         String?
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime?
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// ─────────────────────────────────────────
+// RATE LIMIT (fixed-window counters)
+// ─────────────────────────────────────────
+model RateLimit {
+  key        String   @id
+  count      Int      @default(0)
+  windowStart DateTime @default(now())
+
+  @@index([windowStart])
 }

@@ -2,24 +2,43 @@ import { NextResponse } from 'next/server';
 import { notifyAdmin } from '@/lib/alerts';
 import bcrypt from 'bcryptjs';
 import prisma from '@/lib/prisma';
-import { signAccessToken, signRefreshToken, attachAuthCookies } from '@/lib/auth';
+import { signAccessToken, signRefreshToken, attachAuthCookies, issueAuthSession } from '@/lib/auth';
+import { consume, authKey } from '@/lib/rate-limit';
+import { verifyTurnstile } from '@/lib/turnstile';
 
 export async function POST(request: Request) {
   try {
-    const { email, password } = await request.json();
+    const { email, password, turnstileToken } = await request.json();
 
     if (!email || !password) {
       return NextResponse.json({ error: 'Email and password are required.' }, { status: 400 });
     }
-
-    // Basic email format check
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return NextResponse.json({ error: 'Invalid email format.' }, { status: 400 });
     }
 
+    const ip = (request.headers.get('x-forwarded-for') ?? request.headers.get('cf-connecting-ip') ?? null);
+
+    // Rate limit per email + per IP (fail closed on DB error for this sensitive op).
+    const rl = await consume(authKey(email, ip, 'login'), { failClosed: true });
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: 'Too many login attempts. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(rl.retryAfterSeconds ?? 900) } }
+      );
+    }
+
+    // Turnstile verification (fail closed once configured).
+    if (process.env.TURNSTILE_SECRET_KEY) {
+      const ts = await verifyTurnstile(turnstileToken, ip);
+      if (!ts.ok) {
+        return NextResponse.json({ error: 'Security check failed. Please try again.' }, { status: 400 });
+      }
+    }
+
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
-      // Use a generic message to prevent user enumeration
+      // Generic message to prevent user enumeration.
       return NextResponse.json({ error: 'Invalid email or password.' }, { status: 401 });
     }
 
@@ -51,16 +70,13 @@ export async function POST(request: Request) {
       await prisma.user.update({ where: { id: user.id }, data: { failedLoginAttempts: 0, lockedUntil: null } });
     }
 
-    const accessToken = signAccessToken({ id: user.id, email: user.email, role: user.role });
-    const refreshToken = signRefreshToken({ id: user.id });
-
-    await prisma.user.update({ where: { id: user.id }, data: { refreshToken } });
+    // Create a server-side session row (multi-device support) and set cookies.
+    const { accessToken, refreshToken } = await issueAuthSession(user.id, undefined, ip ?? undefined);
 
     const response = NextResponse.json({
       user: { id: user.id, name: user.name, email: user.email, role: user.role },
     });
 
-    // Fix #1: attach cookies directly onto the response object
     attachAuthCookies(response, accessToken, refreshToken);
 
     return response;

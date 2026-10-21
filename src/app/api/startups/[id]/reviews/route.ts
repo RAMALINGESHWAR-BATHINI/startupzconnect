@@ -10,9 +10,31 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     const reviews = await prisma.startupReview.findMany({
       where: { startupId: parseInt(id) },
       orderBy: { createdAt: 'desc' },
-      include: { user: { select: { name: true } } },
+      include: { user: { select: { id: true, name: true, isAnonymous: true } } },
     });
-    return NextResponse.json(reviews);
+
+    // Strip reviewer identity for anonymous reviews.
+    const sanitized = reviews.map((r) => ({
+      id: r.id,
+      startupId: r.startupId,
+      cultureRating: r.cultureRating,
+      transparencyRating: r.transparencyRating,
+      professionalismRating: r.professionalismRating,
+      productRating: r.productRating,
+      overallRating: r.overallRating,
+      reviewText: r.reviewText,
+      visitType: r.visitType,
+      verifiedByCheckIn: r.verifiedByCheckIn,
+      isAnonymous: r.isAnonymous,
+      startupResponse: r.startupResponse,
+      isFlagged: r.isFlagged,
+      flagReason: r.flagReason,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+      user: r.isAnonymous ? null : { id: r.user.id, name: r.user.name },
+    }));
+
+    return NextResponse.json(sanitized);
   } catch (err) {
     console.error('GET /reviews error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -52,7 +74,26 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const review = await prisma.startupReview.create({
       data: { startupId, userId: decoded.id, visitType, cultureRating, transparencyRating, professionalismRating, productRating, overallRating, reviewText: reviewText.trim(), isAnonymous: !!isAnonymous, verifiedByCheckIn },
     });
-    return NextResponse.json(review, { status: 201 });
+
+    return NextResponse.json({
+      id: review.id,
+      startupId: review.startupId,
+      cultureRating: review.cultureRating,
+      transparencyRating: review.transparencyRating,
+      professionalismRating: review.professionalismRating,
+      productRating: review.productRating,
+      overallRating: review.overallRating,
+      reviewText: review.reviewText,
+      visitType: review.visitType,
+      verifiedByCheckIn: review.verifiedByCheckIn,
+      isAnonymous: review.isAnonymous,
+      startupResponse: review.startupResponse,
+      isFlagged: review.isFlagged,
+      flagReason: review.flagReason,
+      createdAt: review.createdAt,
+      updatedAt: review.updatedAt,
+      user: review.isAnonymous ? null : { id: decoded.id, name: decoded.name },
+    }, { status: 201 });
   } catch (err) {
     console.error('POST /reviews error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
