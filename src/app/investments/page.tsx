@@ -4,7 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { TrendingUp, Loader2, ArrowLeft, Building2 } from 'lucide-react';
+import { TrendingUp, Loader2, ArrowLeft, AlertCircle, CheckCircle } from 'lucide-react';
 
 export default function InvestmentsPage() {
   const { user, loading: authLoading } = useAuth();
@@ -13,6 +13,7 @@ export default function InvestmentsPage() {
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ startupId: '', amount: '', message: '' });
   const [feedback, setFeedback] = useState('');
+  const [isError, setIsError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -20,26 +21,34 @@ export default function InvestmentsPage() {
   }, [authLoading, user, router]);
 
   useEffect(() => {
-    api.get('/startups', { params: { limit: 100 } })
-      .then(res => setStartups(res.data.startups || []))
+    // Fix #20: use lightweight endpoint instead of limit:100
+    api.get('/startups/all')
+      .then(res => setStartups(res.data || []))
       .finally(() => setLoading(false));
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setFeedback(''); setSubmitting(true);
+    setFeedback(''); setIsError(false); setSubmitting(true);
     try {
-      await api.post('/investments', { startupId: parseInt(form.startupId), amount: form.amount, message: form.message });
-      setFeedback('✅ Investment interest submitted successfully!');
+      await api.post('/investments', {
+        startupId: parseInt(form.startupId),
+        amount: form.amount || undefined,
+        message: form.message,
+      });
+      setFeedback('Investment interest submitted successfully!');
       setForm({ startupId: '', amount: '', message: '' });
     } catch (err: any) {
-      setFeedback(`❌ ${err?.response?.data?.error || 'Failed to submit.'}`);
-    } finally {
-      setSubmitting(false);
-    }
+      setFeedback(err?.response?.data?.error || 'Failed to submit.');
+      setIsError(true);
+    } finally { setSubmitting(false); }
   };
 
-  if (authLoading || !user) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="w-8 h-8 text-indigo-400 animate-spin" /></div>;
+  if (authLoading || !user) return (
+    <div className="flex items-center justify-center min-h-screen">
+      <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
+    </div>
+  );
 
   return (
     <div className="max-w-xl mx-auto px-4 py-12">
@@ -57,25 +66,31 @@ export default function InvestmentsPage() {
       <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-8">
         <form onSubmit={handleSubmit} className="space-y-5">
           {feedback && (
-            <p className={`px-4 py-3 rounded-lg text-sm border ${feedback.startsWith('✅') ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
+            <div className={`flex items-center gap-2 px-4 py-3 rounded-lg text-sm border ${isError ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'}`}>
+              {isError ? <AlertCircle className="w-4 h-4 flex-shrink-0" /> : <CheckCircle className="w-4 h-4 flex-shrink-0" />}
               {feedback}
-            </p>
+            </div>
           )}
 
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-1.5">Select Startup *</label>
-            {loading ? <div className="flex items-center gap-2 text-slate-500 text-sm py-2"><Loader2 className="w-4 h-4 animate-spin" /> Loading...</div> : (
+            {loading ? (
+              <div className="flex items-center gap-2 text-slate-500 text-sm py-2"><Loader2 className="w-4 h-4 animate-spin" /> Loading startups…</div>
+            ) : (
               <select required value={form.startupId} onChange={e => setForm({ ...form, startupId: e.target.value })}
                 className="w-full px-4 py-2.5 rounded-lg bg-slate-900 border border-white/10 text-white focus:outline-none focus:border-emerald-500 text-sm transition-colors">
                 <option value="">Choose a startup</option>
-                {startups.map(s => <option key={s.id} value={s.id}>{s.name} — {s.domain || 'General'}</option>)}
+                {startups.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}{s.domain ? ` — ${s.domain}` : ''}</option>
+                ))}
               </select>
             )}
           </div>
 
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-1.5">Investment Amount (USD, optional)</label>
-            <input type="number" min="0" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })}
+            <input type="number" min="0" step="1000" value={form.amount}
+              onChange={e => setForm({ ...form, amount: e.target.value })}
               placeholder="e.g. 50000"
               className="w-full px-4 py-2.5 rounded-lg bg-slate-900 border border-white/10 text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 text-sm transition-colors" />
           </div>
@@ -89,7 +104,7 @@ export default function InvestmentsPage() {
 
           <button type="submit" disabled={submitting}
             className="w-full flex items-center justify-center gap-2 py-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white font-semibold text-sm transition-colors">
-            {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</> : 'Submit Interest'}
+            {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting…</> : 'Submit Interest'}
           </button>
         </form>
       </div>

@@ -3,52 +3,43 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { User, Mail, Briefcase, Globe, Loader2, CheckCircle, ArrowLeft } from 'lucide-react';
+import { User, Mail, Briefcase, Globe, Loader2, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react';
 
 export default function EditProfilePage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [form, setForm] = useState({
-    name: '',
-    email: '',
-    skills: '',
-    bio: '',
-    portfolio: '',
-    location: ''
-  });
+  const [form, setForm] = useState({ name: '', skills: '', bio: '', portfolio: '', location: '' });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/login');
-    if (user) {
-      setForm({
-        name: user.name || '',
-        email: user.email || '',
-        skills: '', // In a real app, fetch these from backend
-        bio: '',
-        portfolio: '',
-        location: ''
-      });
-    }
+    if (user) setForm(f => ({ ...f, name: user.name || '' }));
   }, [authLoading, user, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setSuccess(false);
+    setError('');
     try {
-      // await api.put('/auth/profile', form); // Implementation would be on backend
+      // Fix #9: actually call the backend
+      await api.put('/auth/profile', { name: form.name });
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      setError(err?.response?.data?.error || 'Failed to update profile. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  if (authLoading || !user) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="w-8 h-8 text-indigo-400 animate-spin" /></div>;
+  if (authLoading || !user) return (
+    <div className="flex items-center justify-center min-h-screen">
+      <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
+    </div>
+  );
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-12">
@@ -63,12 +54,19 @@ export default function EditProfilePage() {
 
       <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-8">
         <form onSubmit={handleSubmit} className="space-y-6">
+          {error && (
+            <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />{error}
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">Full Name</label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                 <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
+                  required minLength={2} maxLength={100}
                   className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-slate-900 border border-white/10 text-white text-sm focus:border-indigo-500 outline-none" />
               </div>
             </div>
@@ -76,7 +74,7 @@ export default function EditProfilePage() {
               <label className="block text-sm font-medium text-slate-300 mb-1.5">Email (Read-only)</label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                <input type="email" value={form.email} readOnly
+                <input type="email" value={user.email} readOnly
                   className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-slate-950 border border-white/5 text-slate-500 text-sm outline-none cursor-not-allowed" />
               </div>
             </div>
@@ -110,7 +108,7 @@ export default function EditProfilePage() {
               <label className="block text-sm font-medium text-slate-300 mb-1.5">Portfolio / LinkedIn</label>
               <div className="relative">
                 <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                <input type="text" value={form.portfolio} onChange={e => setForm({ ...form, portfolio: e.target.value })}
+                <input type="url" value={form.portfolio} onChange={e => setForm({ ...form, portfolio: e.target.value })}
                   placeholder="https://..."
                   className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-slate-900 border border-white/10 text-white text-sm focus:border-indigo-500 outline-none" />
               </div>
@@ -129,8 +127,9 @@ export default function EditProfilePage() {
                 <CheckCircle className="w-4 h-4" /> Profile updated successfully!
               </p>
             )}
+            {!success && <span />}
             <button type="submit" disabled={loading}
-              className="ml-auto px-8 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold rounded-xl transition-all shadow-lg shadow-indigo-500/20">
+              className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold rounded-xl transition-all shadow-lg shadow-indigo-500/20">
               {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Update Profile'}
             </button>
           </div>

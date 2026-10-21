@@ -1,20 +1,31 @@
 import jwt from 'jsonwebtoken';
+import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
-const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET || 'access_secret_key_please_change';
-const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || 'refresh_secret_key_please_change';
+const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET;
+const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET;
 
-export const signAccessToken = (payload: any) => {
-  return jwt.sign(payload, ACCESS_TOKEN_SECRET, { expiresIn: '15m' });
+function getAccessSecret(): string {
+  if (!ACCESS_TOKEN_SECRET) throw new Error('Missing ACCESS_TOKEN_SECRET environment variable');
+  return ACCESS_TOKEN_SECRET;
+}
+
+function getRefreshSecret(): string {
+  if (!REFRESH_TOKEN_SECRET) throw new Error('Missing REFRESH_TOKEN_SECRET environment variable');
+  return REFRESH_TOKEN_SECRET;
+}
+
+export const signAccessToken = (payload: object) => {
+  return jwt.sign(payload, getAccessSecret(), { expiresIn: '15m' });
 };
 
-export const signRefreshToken = (payload: any) => {
-  return jwt.sign(payload, REFRESH_TOKEN_SECRET, { expiresIn: '7d' });
+export const signRefreshToken = (payload: object) => {
+  return jwt.sign(payload, getRefreshSecret(), { expiresIn: '7d' });
 };
 
 export const verifyAccessToken = (token: string) => {
   try {
-    return jwt.verify(token, ACCESS_TOKEN_SECRET);
+    return jwt.verify(token, getAccessSecret());
   } catch {
     return null;
   }
@@ -22,30 +33,29 @@ export const verifyAccessToken = (token: string) => {
 
 export const verifyRefreshToken = (token: string) => {
   try {
-    return jwt.verify(token, REFRESH_TOKEN_SECRET);
+    return jwt.verify(token, getRefreshSecret());
   } catch {
     return null;
   }
 };
 
-export const setAuthCookies = async (accessToken: string, refreshToken: string) => {
-  const cookieStore = await cookies();
-  const isProd = process.env.NODE_ENV === 'production';
-  
-  cookieStore.set('accessToken', accessToken, {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: 'strict',
-    maxAge: 15 * 60, // 15 mins
-    path: '/'
-  });
+const isProd = process.env.NODE_ENV === 'production';
 
-  cookieStore.set('refreshToken', refreshToken, {
+// Attach auth cookies directly onto a NextResponse object (Fix #1)
+export const attachAuthCookies = (response: NextResponse, accessToken: string, refreshToken: string) => {
+  response.cookies.set('accessToken', accessToken, {
     httpOnly: true,
     secure: isProd,
     sameSite: 'strict',
-    maxAge: 7 * 24 * 60 * 60, // 7 days
-    path: '/'
+    maxAge: 15 * 60,
+    path: '/',
+  });
+  response.cookies.set('refreshToken', refreshToken, {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: 'strict',
+    maxAge: 7 * 24 * 60 * 60,
+    path: '/',
   });
 };
 

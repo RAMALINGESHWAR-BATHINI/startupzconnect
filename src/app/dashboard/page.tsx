@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Building2, Briefcase, TrendingUp, Users, Plus,
-  Loader2, ArrowRight, CheckCircle, Clock
+  Loader2, ArrowRight, Clock
 } from 'lucide-react';
 
 export default function DashboardPage() {
@@ -27,24 +27,35 @@ export default function DashboardPage() {
     const fetchAll = async () => {
       setDataLoading(true);
       const results = await Promise.allSettled([
-        user.role === 'FOUNDER' || user.role === 'ADMIN' ? api.get('/startups') : Promise.resolve(null),
+        (user.role === 'STARTUP' || user.role === 'ADMIN')
+          ? api.get('/startups', { params: { limit: 50 } })
+          : Promise.resolve(null),
         api.get('/jobs/my/applications'),
         api.get('/investments/my'),
         api.get('/collaboration/my'),
       ]);
+
       if (results[0].status === 'fulfilled' && results[0].value) {
         const data = results[0].value.data;
-        setMyStartups((data.startups || []).filter((s: any) => s.founder?.id === user.id || user.role === 'ADMIN').slice(0, 5));
+        setMyStartups(
+          (data.startups || [])
+            .filter((s: any) => s.founder?.id === user.id || user.role === 'ADMIN')
+            .slice(0, 5)
+        );
       }
-      if (results[1].status === 'fulfilled') setMyApplications(results[1].value.data.slice(0, 5));
-      if (results[2].status === 'fulfilled') setMyInvestments(results[2].value.data.slice(0, 5));
-      if (results[3].status === 'fulfilled') setMyCollabs(results[3].value.data.slice(0, 5));
+      if (results[1].status === 'fulfilled') setMyApplications((results[1].value as any).data.slice(0, 5));
+      if (results[2].status === 'fulfilled') setMyInvestments((results[2].value as any).data.slice(0, 5));
+      if (results[3].status === 'fulfilled') setMyCollabs((results[3].value as any).data.slice(0, 5));
       setDataLoading(false);
     };
     fetchAll();
   }, [user]);
 
-  if (authLoading || !user) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="w-8 h-8 text-indigo-400 animate-spin" /></div>;
+  if (authLoading || !user) return (
+    <div className="flex items-center justify-center min-h-screen">
+      <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
+    </div>
+  );
 
   const statusColor = (status: string) => {
     if (status === 'ACCEPTED') return 'text-emerald-400';
@@ -55,7 +66,6 @@ export default function DashboardPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">
-      {/* Header */}
       <div className="mb-10 flex items-start justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold text-white mb-1">Dashboard</h1>
@@ -68,7 +78,11 @@ export default function DashboardPage() {
             className="px-4 py-2.5 rounded-xl border border-white/10 text-slate-300 hover:text-white text-sm font-medium transition-colors">
             Edit Profile
           </Link>
-          {(user.role === 'FOUNDER' || user.role === 'ADMIN') && (
+          <Link href="/dashboard/settings"
+            className="px-4 py-2.5 rounded-xl border border-white/10 text-slate-300 hover:text-white text-sm font-medium transition-colors">
+            Settings
+          </Link>
+          {(user.role === 'STARTUP' || user.role === 'ADMIN') && (
             <Link href="/dashboard/startups/create"
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition-colors">
               <Plus className="w-4 h-4" /> Create Startup
@@ -81,14 +95,14 @@ export default function DashboardPage() {
         <div className="flex items-center justify-center py-32"><Loader2 className="w-8 h-8 text-indigo-400 animate-spin" /></div>
       ) : (
         <div className="space-y-10">
-          {/* Stats Bar */}
+          {/* Stats Bar — real data */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { label: 'Your Startups', value: myStartups.length, icon: Building2, color: 'text-blue-400' },
-              { label: 'Job Openings', value: '12', icon: Briefcase, color: 'text-indigo-400' },
-              { label: 'Collab Requests', value: myCollabs.length, icon: Users, color: 'text-purple-400' },
-              { label: 'Suggestions', value: '8', icon: TrendingUp, color: 'text-emerald-400' },
-            ].map(s => (
+              { label: 'Your Startups', value: myStartups.length, icon: Building2, color: 'text-blue-400', show: user.role === 'STARTUP' || user.role === 'ADMIN' },
+              { label: 'Job Applications', value: myApplications.length, icon: Briefcase, color: 'text-indigo-400', show: true },
+              { label: 'Collab Requests', value: myCollabs.length, icon: Users, color: 'text-purple-400', show: true },
+              { label: 'Investment Interests', value: myInvestments.length, icon: TrendingUp, color: 'text-emerald-400', show: true },
+            ].filter(s => s.show).map(s => (
               <div key={s.label} className="p-4 rounded-xl border border-white/5 bg-white/[0.02]">
                 <s.icon className={`w-5 h-5 ${s.color} mb-2`} />
                 <p className="text-2xl font-bold text-white">{s.value}</p>
@@ -98,9 +112,8 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-            {/* My Startups (Founders only) */}
-            {(user.role === 'FOUNDER' || user.role === 'ADMIN') && (
+            {/* My Startups */}
+            {(user.role === 'STARTUP' || user.role === 'ADMIN') && (
               <div className="p-6 rounded-2xl border border-white/5 bg-white/[0.02]">
                 <div className="flex items-center justify-between mb-5">
                   <h2 className="font-semibold text-white flex items-center gap-2"><Building2 className="w-5 h-5 text-indigo-400" /> My Startups</h2>
@@ -130,55 +143,58 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* Recent Collaboration Requests (Tables from legacy review) */}
+            {/* My Collaboration Requests — real data */}
             <div className="p-6 rounded-2xl border border-white/5 bg-white/[0.02]">
-              <h2 className="font-semibold text-white mb-5 flex items-center gap-2"><Users className="w-5 h-5 text-purple-400" /> Recent Collaboration Requests</h2>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-white/5 text-slate-500">
-                      <th className="pb-3 font-medium">Contributor</th>
-                      <th className="pb-3 font-medium">Skill</th>
-                      <th className="pb-3 font-medium text-right">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                    {[
-                      { name: 'Rahul S.', skill: 'Full Stack', status: 'Pending' },
-                      { name: 'Anita K.', skill: 'ML Engineer', status: 'Reviewed' },
-                    ].map((req, i) => (
-                      <tr key={i} className="group">
-                        <td className="py-3 text-white font-medium">{req.name}</td>
-                        <td className="py-3 text-slate-400">{req.skill}</td>
-                        <td className="py-3 text-right">
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${req.status === 'Pending' ? 'bg-amber-500/10 text-amber-500' : 'bg-blue-500/10 text-blue-500'}`}>
-                            {req.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <h2 className="font-semibold text-white mb-5 flex items-center gap-2"><Users className="w-5 h-5 text-purple-400" /> My Collaboration Requests</h2>
+              {myCollabs.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-slate-500 text-sm mb-3">No collaboration requests yet.</p>
+                  <Link href="/startups" className="text-indigo-400 text-sm hover:text-indigo-300">Browse startups →</Link>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {myCollabs.map((c: any) => (
+                    <Link href={`/startups/${c.startup?.id}`} key={c.id} className="flex items-center gap-3 p-3 rounded-xl bg-slate-900 hover:bg-slate-800 transition-colors group">
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                        {c.startup?.name?.charAt(0)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-white truncate">{c.startup?.name}</p>
+                        <p className="text-xs text-slate-500">{c.startup?.domain || 'General'}</p>
+                      </div>
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 flex-shrink-0">Pending</span>
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* Latest Suggestions (Legacy review) */}
+            {/* My Investment Interests — real data */}
             <div className="p-6 rounded-2xl border border-white/5 bg-white/[0.02]">
-              <h2 className="font-semibold text-white mb-5 flex items-center gap-2"><TrendingUp className="w-5 h-5 text-emerald-400" /> Latest Suggestions</h2>
-              <div className="space-y-4">
-                {[
-                  { user: 'Arjun P.', msg: 'Consider adding a dark mode toggle for mobile users.' },
-                  { user: 'Sneha R.', msg: 'The search filters could use a "Funding Stage" option.' },
-                ].map((s, i) => (
-                  <div key={i} className="p-3 rounded-xl bg-slate-900 border border-white/5">
-                    <p className="text-xs font-bold text-indigo-400 mb-1">{s.user}</p>
-                    <p className="text-sm text-slate-300 italic">"{s.msg}"</p>
-                  </div>
-                ))}
-              </div>
+              <h2 className="font-semibold text-white mb-5 flex items-center gap-2"><TrendingUp className="w-5 h-5 text-emerald-400" /> My Investment Interests</h2>
+              {myInvestments.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-slate-500 text-sm mb-3">No investment interests yet.</p>
+                  <Link href="/investments" className="text-indigo-400 text-sm hover:text-indigo-300">Express interest →</Link>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {myInvestments.map((inv: any) => (
+                    <Link href={`/startups/${inv.startup?.id}`} key={inv.id} className="flex items-center gap-3 p-3 rounded-xl bg-slate-900 hover:bg-slate-800 transition-colors group">
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-600 to-teal-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                        {inv.startup?.name?.charAt(0)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-white truncate">{inv.startup?.name}</p>
+                        <p className="text-xs text-slate-500">{inv.amount ? `$${inv.amount.toLocaleString()}` : 'Amount not specified'}</p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* My Job Applications */}
+            {/* My Job Applications — real data */}
             <div className="p-6 rounded-2xl border border-white/5 bg-white/[0.02]">
               <div className="flex items-center justify-between mb-5">
                 <h2 className="font-semibold text-white flex items-center gap-2"><Briefcase className="w-5 h-5 text-blue-400" /> My Job Applications</h2>
@@ -191,15 +207,15 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {myApplications.map(app => (
-                    <div key={app.id} className="flex items-center gap-3 p-3 rounded-xl bg-slate-900">
+                  {myApplications.map((app: any) => (
+                    <Link href={`/jobs/${app.job?.id}`} key={app.id} className="flex items-center gap-3 p-3 rounded-xl bg-slate-900 hover:bg-slate-800 transition-colors">
                       <Briefcase className="w-4 h-4 text-slate-500 flex-shrink-0" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-white truncate">{app.job?.title}</p>
                         <p className="text-xs text-slate-500">{app.job?.startup?.name}</p>
                       </div>
                       <span className={`text-xs font-medium ${statusColor(app.status)}`}>{app.status}</span>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               )}
