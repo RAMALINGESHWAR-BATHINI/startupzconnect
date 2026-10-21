@@ -1,0 +1,58 @@
+# ── Dependencies ──
+/node_modules
+/.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# ── Testing ──
+/coverage
+
+# ── Next.js ──
+/.next/
+/out/
+/build
+
+# ── Production ──
+/dist
+
+# ── Misc ──
+.DS_Store
+Thumbs.db
+*.pem
+
+# ── Debug logs ──
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+logs/
+*.log
+
+# ── Local environment files (NEVER commit real secrets) ──
+# .env.example is the sanitised template and IS tracked.
+.env*
+!.env.example
+
+# ── Vercel ──
+.vercel
+
+# ── TypeScript ──
+*.tsbuildinfo
+next-env.d.ts
+
+# ── Cloudflare ──
+.wrangler/
+.open-next/
+
+# ── Database files ──
+# Never commit SQLite databases: they contain user rows, password hashes
+# and session tokens. `prisma db push` regenerates schema from schema.prisma.
+prisma/*.db
+prisma/*.db-journal
+prisma/*.db-shm
+prisma/*.db-wal
+prisma/migrations/
+
+# ── Runtime uploads ──
+# R2 is the real store; this is only the local `npm run dev` fallback.
+/public/uploads/

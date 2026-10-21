@@ -1,0 +1,108 @@
+import { NextResponse } from 'next/server';
+import { isEmailVerified, unverifiedResponse } from '@/lib/guards';
+import prisma from '@/lib/prisma';
+import { verifyAccessToken } from '@/lib/auth';
+import { cookies } from 'next/headers';
+
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+    const reviews = await prisma.startupReview.findMany({
+      where: { startupId: parseInt(id) },
+      orderBy: { createdAt: 'desc' },
+      include: { user: { select: { id: true, name: true } } },
+    });
+
+    // Strip reviewer identity for anonymous reviews.
+    const sanitized = reviews.map((r) => ({
+      id: r.id,
+      startupId: r.startupId,
+      cultureRating: r.cultureRating,
+      transparencyRating: r.transparencyRating,
+      professionalismRating: r.professionalismRating,
+      productRating: r.productRating,
+      overallRating: r.overallRating,
+      reviewText: r.reviewText,
+      visitType: r.visitType,
+      verifiedByCheckIn: r.verifiedByCheckIn,
+      isAnonymous: r.isAnonymous,
+      startupResponse: r.startupResponse,
+      isFlagged: r.isFlagged,
+      flagReason: r.flagReason,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+      user: r.isAnonymous ? null : { id: r.user.id, name: r.user.name },
+    }));
+
+    return NextResponse.json(sanitized);
+  } catch (err) {
+    console.error('GET /reviews error:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+    const cookieStore = await cookies();
+    const token = cookieStore.get('accessToken')?.value;
+    if (!token) return NextResponse.json({ error: 'Please log in to leave a review.' }, { status: 401 });
+    const decoded = verifyAccessToken(token) as any;
+    if (!decoded) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    if (!(await isEmailVerified(decoded.id))) return unverifiedResponse();
+
+    const startupId = parseInt(id);
+    const startup = await prisma.startup.findUnique({ where: { id: startupId } });
+    if (!startup) return NextResponse.json({ error: 'Startup not found.' }, { status: 404 });
+    if (startup.founderId === decoded.id) return NextResponse.json({ error: 'You cannot review your own startup.' }, { status: 400 });
+
+    const existing = await prisma.startupReview.findFirst({ where: { startupId, userId: decoded.id } });
+    if (existing) return NextResponse.json({ error: 'You have already reviewed this startup.' }, { status: 409 });
+
+    // Require a verified check-in before allowing a review
+    const checkIn = await prisma.officeCheckIn.findFirst({ where: { startupId, userId: decoded.id } });
+    const verifiedByCheckIn = !!checkIn;
+
+    const { visitType, cultureRating, transparencyRating, professionalismRating, productRating, overallRating, reviewText, isAnonymous } = await request.json();
+
+    if (!reviewText || reviewText.trim().length < 50) return NextResponse.json({ error: 'Review must be at least 50 characters.' }, { status: 400 });
+    for (const r of [cultureRating, transparencyRating, professionalismRating, productRating, overallRating]) {
+      if (!r || r < 1 || r > 5) return NextResponse.json({ error: 'All rating fields must be 1-5.' }, { status: 400 });
+    }
+
+    const review = await prisma.startupReview.create({
+      data: { startupId, userId: decoded.id, visitType, cultureRating, transparencyRating, professionalismRating, productRating, overallRating, reviewText: reviewText.trim(), isAnonymous: !!isAnonymous, verifiedByCheckIn },
+    });
+
+    // The access token carries only identity claims, so read the author's name
+    // from the database rather than from the token payload.
+    const author = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      select: { id: true, name: true },
+    });
+
+    return NextResponse.json({
+      id: review.id,
+      startupId: review.startupId,
+      cultureRating: review.cultureRating,
+      transparencyRating: review.transparencyRating,
+      professionalismRating: review.professionalismRating,
+      productRating: review.productRating,
+      overallRating: review.overallRating,
+      reviewText: review.reviewText,
+      visitType: review.visitType,
+      verifiedByCheckIn: review.verifiedByCheckIn,
+      isAnonymous: review.isAnonymous,
+      startupResponse: review.startupResponse,
+      isFlagged: review.isFlagged,
+      flagReason: review.flagReason,
+      createdAt: review.createdAt,
+      updatedAt: review.updatedAt,
+      user: review.isAnonymous ? null : author,
+    }, { status: 201 });
+  } catch (err) {
+    console.error('POST /reviews error:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}

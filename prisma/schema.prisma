@@ -1,0 +1,707 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// ─────────────────────────────────────────
+// USER
+// ─────────────────────────────────────────
+model User {
+  id           Int     @id @default(autoincrement())
+  name         String
+  email        String  @unique
+  password     String
+  role         String  @default("USER")
+  // Role values: USER | STUDENT | PROFESSIONAL | STARTUP | INVESTOR | MENTOR | OTHER | ADMIN
+
+  // Profile extras
+  bio          String?
+  skills       String?
+  location     String?
+  portfolio    String?
+  avatarUrl    String?
+
+  // Account status & admin assignment
+  status             String   @default("ACTIVE")   // ACTIVE | SUSPENDED
+  organization       String?
+
+  // Investor verification
+  investorVerified             Boolean   @default(false)
+  investorVerificationStatus   String    @default("NONE")   // NONE | PENDING | VERIFIED | REJECTED | REVOKED
+  investorNetWorth             String?
+  investorThesis               String?
+  investorTicketSize           String?
+  investorSectors              String?
+  investorPastDeals            String?
+  sebiRegNumber                String?
+  investorReviewedBy           Int?
+  investorReviewedAt           DateTime?
+  investorReviewNotes          String?
+
+  // Mentor-specific
+  mentorExpertise     String? // comma-separated domains e.g. "AI,FinTech"
+  mentorAvailability  String? // e.g. "2 hrs/month"
+  mentorBio           String?
+  mentorIsActive      Boolean @default(false)
+
+  termsAcceptedAt     DateTime?
+
+  // Sessions (replaces single refreshToken column — multi-device support)
+  sessions            Session[]
+
+  // Email verification
+  emailVerified       Boolean   @default(false)
+  emailVerifyToken    String?   @unique
+  emailVerifyExpires  DateTime?
+
+  // Password reset
+  resetToken          String?   @unique
+  resetTokenExpires   DateTime?
+
+  // Login rate limiting / account lockout
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+
+  // Relations
+  startups              Startup[]
+  jobApplications       JobApplication[]
+  collaborationRequests CollaborationRequest[]
+  investmentInterests   InvestmentInterest[]
+  reviewsGiven          StartupReview[]
+  checkIns              OfficeCheckIn[]
+  agentProfile          FieldAgent?
+  cofounderListing      CofounderListing?
+  eventRSVPs            EventRSVP[]
+  pressRequests         PressRequest[]
+  reportsFiled          Report[]
+  notifications         Notification[]
+  adminAssignments      AdminRoleAssignment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────
+// STARTUP
+// ─────────────────────────────────────────
+model Startup {
+  id          Int     @id @default(autoincrement())
+  name        String
+  domain      String?
+  description String?
+  founderId   Int
+  founder     User    @relation(fields: [founderId], references: [id], onDelete: Cascade)
+
+  // Origin & legal identity
+  originType       String  @default("INDEPENDENT")
+  // INDEPENDENT | INSTITUTIONAL | ACCELERATOR | CORPORATE_SPINOFF | JV | GOVT_BACKED
+  institutionName  String? // if INSTITUTIONAL or ACCELERATOR
+  institutionPartnerId Int?
+  institutionPartner   InstitutionPartner? @relation(fields: [institutionPartnerId], references: [id])
+  registrationId   String? // CIN / LLPIN / GST etc.
+  registrationIdType String? // CIN | LLPIN | GSTIN | DPIIT | UDYAM
+  registeredAddress String?
+  operationalAddress String?
+  foundedDate      String?
+  stage            String  @default("IDEA")
+  // IDEA | MVP | PRE_SEED | SEED | SERIES_A | SERIES_B | BOOTSTRAPPED
+
+  // Team
+  employeeCount    Int     @default(1)
+  teamPhotoUrl     String?
+
+  // Verification & badges
+  badgeTier        String  @default("NONE")
+  // NONE | REGISTERED | FIELD_VERIFIED | TRUSTED | ELITE
+  documentsVerified Boolean @default(false)
+  inspectionScore  Float?
+  lastInspectedAt  DateTime?
+
+  // Showcase / traction
+  websiteUrl       String?
+  productPhotoUrl  String?
+  monthlyUsers     Int?
+  monthlyRevenue   Float?
+  totalFundingRaised Float?
+  pitchDeckUrl     String?
+
+  // Relations
+  jobOpenings           JobOpening[]
+  collaborationRequests CollaborationRequest[]
+  investmentInterests   InvestmentInterest[]
+  reviews               StartupReview[]
+  inspections           InspectionReport[]
+  checkIns              OfficeCheckIn[]
+  teamMembers           TeamMember[]
+  workLogs              WorkLog[]
+  documents             StartupDocument[]
+  events                Event[]
+  pressResponses        PressResponse[]
+  receivedCollabRequests CollaborationRequest[] @relation("StartupToStartupCollab")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([domain])
+  @@index([stage])
+  @@index([originType])
+  @@index([badgeTier])
+}
+
+// ─────────────────────────────────────────
+// TEAM MEMBERS
+// ─────────────────────────────────────────
+model TeamMember {
+  id        Int     @id @default(autoincrement())
+  startupId Int
+  startup   Startup @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  name      String
+  role      String?
+  photoUrl  String?
+  linkedin  String?
+  isFounder Boolean @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([startupId])
+}
+
+// ─────────────────────────────────────────
+// WORK LOG (build-in-public timeline)
+// ─────────────────────────────────────────
+model WorkLog {
+  id        Int     @id @default(autoincrement())
+  startupId Int
+  startup   Startup @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  weekOf    String  // ISO date of week start e.g. "2024-03-11"
+  summary   String
+  hoursSpent Int?
+  milestone Boolean @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([startupId])
+}
+
+// ─────────────────────────────────────────
+// JOBS
+// ─────────────────────────────────────────
+model JobOpening {
+  id          Int    @id @default(autoincrement())
+  startupId   Int
+  startup     Startup @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  skills      String?
+  type        String? // Full-time | Part-time | Internship | Contract
+  location    String? // Remote | Hybrid | On-site
+  salaryMin   Int?
+  salaryMax   Int?
+  isOpen      Boolean @default(true)
+
+  jobApplications JobApplication[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type])
+  @@index([startupId])
+  @@index([isOpen])
+}
+
+model JobApplication {
+  id        Int        @id @default(autoincrement())
+  jobId     Int
+  job       JobOpening @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status    String     @default("PENDING") // PENDING | REVIEWED | ACCEPTED | REJECTED
+  coverNote String?
+  resumeUrl String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@unique([jobId, userId])
+}
+
+// ─────────────────────────────────────────
+// COLLABORATION
+// ─────────────────────────────────────────
+model CollaborationRequest {
+  id        Int      @id @default(autoincrement())
+  startupId Int
+  startup   Startup  @relation(fields: [startupId], references: [id], onDelete: Cascade)
+
+  // Exactly one of userId / fromStartupId is set — enforced at the API layer.
+  // A user collaborating with a startup uses userId; a startup collaborating
+  // with another startup uses fromStartupId instead.
+  userId    Int?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  fromStartupId Int?
+  fromStartup   Startup? @relation("StartupToStartupCollab", fields: [fromStartupId], references: [id], onDelete: Cascade)
+
+  message   String?
+  status    String   @default("PENDING") // PENDING | ACCEPTED | REJECTED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([startupId])
+  @@index([fromStartupId])
+}
+
+// ─────────────────────────────────────────
+// INVESTMENTS
+// ─────────────────────────────────────────
+model InvestmentInterest {
+  id        Int      @id @default(autoincrement())
+  startupId Int
+  startup   Startup  @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount    Float?
+  message   String?
+  status    String   @default("PENDING") // PENDING | IN_DISCUSSION | INVESTED | DECLINED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([startupId, userId])
+}
+
+// ─────────────────────────────────────────
+// REVIEWS (community, verified visits only)
+// ─────────────────────────────────────────
+model StartupReview {
+  id              Int      @id @default(autoincrement())
+  startupId       Int
+  startup         Startup  @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  userId          Int
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isAnonymous     Boolean  @default(false)
+
+  // Ratings 1-5
+  cultureRating        Int
+  transparencyRating   Int
+  professionalismRating Int
+  productRating        Int
+  overallRating        Int
+
+  reviewText      String
+  visitType       String  // JOB_INTERVIEW | EMPLOYEE | INVESTOR_MEETING | OFFICE_VISIT | COLLABORATION
+  verifiedByCheckIn Boolean @default(false)
+
+  startupResponse String?
+  isFlagged       Boolean @default(false)
+  flagReason      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([startupId, userId])
+  @@index([startupId])
+}
+
+// ─────────────────────────────────────────
+// OFFICE CHECK-IN (unlocks review)
+// ─────────────────────────────────────────
+model OfficeCheckIn {
+  id        Int      @id @default(autoincrement())
+  startupId Int
+  startup   Startup  @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose   String   // JOB_INTERVIEW | INVESTOR_MEETING | OFFICE_VISIT | COLLABORATION
+  checkedInAt DateTime @default(now())
+
+  @@index([startupId, userId])
+}
+
+// ─────────────────────────────────────────
+// FIELD AGENTS
+// ─────────────────────────────────────────
+model FieldAgent {
+  id          Int     @id @default(autoincrement())
+  userId      Int     @unique
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  city        String
+  state       String?
+  isActive    Boolean @default(true)
+  totalVisits Int     @default(0)
+  rating      Float?  // agent quality rating from internal review
+
+  inspections InspectionReport[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([city])
+}
+
+// ─────────────────────────────────────────
+// INSPECTION REPORTS
+// ─────────────────────────────────────────
+model InspectionReport {
+  id          Int        @id @default(autoincrement())
+  startupId   Int
+  startup     Startup    @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  agentId     Int?
+  agent       FieldAgent? @relation(fields: [agentId], references: [id])
+
+  // What the founder requested
+  tier          String    @default("BASIC") // BASIC (₹1,000) | PREMIUM (₹3,000)
+  preferredDate DateTime?
+  requestNotes  String?
+
+  status      String     @default("PENDING")
+  // PENDING (no agent yet) | SCHEDULED | IN_PROGRESS | SUBMITTED | APPROVED | REJECTED | FAILED
+
+  // Scores 1-10
+  legitimacyScore     Int?
+  teamScore           Int?
+  productScore        Int?
+  workspaceScore      Int?
+  momentumScore       Int?
+  overallScore        Float?
+
+  // Agent notes
+  agentNotes          String?
+  recommendedBadge    String?
+
+  // Photos (stored as JSON array of URLs)
+  exteriorPhotos      String? // JSON array
+  interiorPhotos      String? // JSON array
+  teamPhotos          String? // JSON array
+  productPhotos       String? // JSON array
+
+  visitedAt           DateTime?
+  submittedAt         DateTime?
+  approvedAt          DateTime?
+
+  // Internal admin review
+  adminReviewNotes    String?
+  adminReviewedBy     Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([startupId])
+  @@index([status])
+}
+
+// ─────────────────────────────────────────
+// CO-FOUNDER MATCHING
+// ─────────────────────────────────────────
+model CofounderListing {
+  id             Int     @id @default(autoincrement())
+  userId         Int     @unique
+  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  lookingFor     String  // e.g. "Technical Co-founder", "Business Co-founder"
+  skillsOffered  String  // comma-separated
+  skillsWanted   String  // comma-separated
+  commitment     String  // "Full-time" | "Part-time" | "Weekends"
+  domain         String?
+  pitch          String  // short description of the idea/stage
+  isActive       Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([domain])
+}
+
+// ─────────────────────────────────────────
+// EVENTS
+// ─────────────────────────────────────────
+model Event {
+  id           Int      @id @default(autoincrement())
+  title        String
+  description  String?
+  type         String   // DEMO_DAY | PITCH_COMPETITION | MEETUP | WORKSHOP | OTHER
+  startupId    Int?
+  startup      Startup? @relation(fields: [startupId], references: [id], onDelete: SetNull)
+  organizerName String  // free-text org name if not tied to a startup (e.g. "T-Hub")
+  eventDate    DateTime
+  location     String?
+  isVirtual    Boolean  @default(false)
+  joinLink     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  rsvps        EventRSVP[]
+
+  @@index([eventDate])
+  @@index([type])
+}
+
+model EventRSVP {
+  id        Int      @id @default(autoincrement())
+  eventId   Int
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([eventId, userId])
+}
+
+// ─────────────────────────────────────────
+// GRANTS & GOVERNMENT SCHEMES
+// ─────────────────────────────────────────
+model Grant {
+  id           Int      @id @default(autoincrement())
+  name         String
+  provider     String   // e.g. "Startup India", "SIDBI", "State Govt of Telangana"
+  description  String
+  eligibility  String
+  amountRange  String?  // e.g. "Up to ₹10L"
+  applyUrl     String?
+  deadline     DateTime?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([isActive])
+}
+
+// ─────────────────────────────────────────
+// PRESS / MEDIA REQUESTS
+// ─────────────────────────────────────────
+model PressRequest {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String
+  domain      String?
+  deadline    DateTime?
+  status      String   @default("OPEN") // OPEN | CLOSED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  responses   PressResponse[]
+
+  @@index([status])
+}
+
+model PressResponse {
+  id             Int          @id @default(autoincrement())
+  pressRequestId Int
+  pressRequest   PressRequest @relation(fields: [pressRequestId], references: [id], onDelete: Cascade)
+  startupId      Int
+  startup        Startup      @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  message        String
+  createdAt      DateTime     @default(now())
+
+  @@unique([pressRequestId, startupId])
+}
+
+// ─────────────────────────────────────────
+// STARTUP DOCUMENTS (for the Registered badge)
+// ─────────────────────────────────────────
+model StartupDocument {
+  id           Int      @id @default(autoincrement())
+  startupId    Int
+  startup      Startup  @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  docType      String   // INCORPORATION | GST | DPIIT | SHOP_ACT | OTHER
+  fileUrl      String   // link to the document (paste-a-link until file upload/R2 exists)
+  status       String   @default("PENDING") // PENDING | VERIFIED | REJECTED
+  reviewNotes  String?
+  reviewedBy   Int?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([startupId])
+  @@index([status])
+}
+
+// ─────────────────────────────────────────
+// GENERIC CONTENT REPORTING (flag button)
+// ─────────────────────────────────────────
+model Report {
+  id          Int      @id @default(autoincrement())
+  contentType String   // REVIEW | STARTUP | JOB | USER
+  contentId   Int
+  reportedBy  Int
+  reporter    User     @relation(fields: [reportedBy], references: [id], onDelete: Cascade)
+  reason      String
+  status      String   @default("PENDING") // PENDING | ACTIONED | DISMISSED
+  createdAt   DateTime @default(now())
+
+  @@index([contentType, contentId])
+  @@index([status])
+}
+
+// ─────────────────────────────────────────
+// INSTITUTION PARTNERS (bulk onboarding channel)
+// ─────────────────────────────────────────
+model InstitutionPartner {
+  id           Int      @id @default(autoincrement())
+  name         String   // e.g. "T-Hub", "IIT Hyderabad Incubation Cell"
+  contactName  String?
+  contactEmail String?
+  city         String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  startups     Startup[]
+
+  @@index([isActive])
+}
+
+// ─────────────────────────────────────────
+// NOTIFICATIONS (in-app; admin-to-user + system events)
+// ─────────────────────────────────────────
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  link      String?  // optional relative path to navigate to on click
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
+}
+
+// ─────────────────────────────────────────
+// ADMIN ROLE ASSIGNMENTS
+// ─────────────────────────────────────────
+model AdminRoleAssignment {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        String   // one of ALL_ADMIN_ROLES in src/lib/permissions.ts
+  grantedById Int?
+  approvalId  Int?
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, role])
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────
+// AUDIT LOG (append-only)
+// ─────────────────────────────────────────
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  createdAt  DateTime @default(now())
+  category   String   // ADMIN_ACTION | SECURITY | AUTHZ_FAILURE | DATA_EXPORT | APPROVAL | ERROR
+  action     String
+  severity   String   @default("INFO")    // INFO | WARN | HIGH
+  outcome    String   @default("SUCCESS") // SUCCESS | FAILURE | DENIED
+  actorId    Int?
+  actorLabel String?
+  targetType String?
+  targetId   String?
+  ip         String?
+  metadata   String?  // redacted JSON (see src/lib/redact.ts)
+
+  @@index([createdAt])
+  @@index([category, createdAt])
+  @@index([action])
+  @@index([actorId])
+}
+
+// ─────────────────────────────────────────
+// APPROVAL REQUESTS
+// ─────────────────────────────────────────
+model ApprovalRequest {
+  id               Int       @id @default(autoincrement())
+  type             String    // ROLE_ASSIGNMENT | DATA_EXPORT
+  status           String    @default("PENDING") // PENDING | APPROVED | REJECTED | EXECUTED | EXECUTION_FAILED | EXPIRED
+  requestedById    Int
+  reason           String
+  payload          String    // JSON, validated by approval-policy.ts
+  decidedById      Int?
+  decidedAt        DateTime?
+  decisionNote     String?
+  executedAt       DateTime?
+  executionOutcome String?
+  expiresAt        DateTime
+  createdAt        DateTime  @default(now())
+
+  @@index([status])
+  @@index([requestedById])
+}
+
+// ─────────────────────────────────────────
+// SECURITY INCIDENTS
+// ─────────────────────────────────────────
+model SecurityIncident {
+  id             Int       @id @default(autoincrement())
+  title          String
+  description    String
+  severity       String    @default("MEDIUM") // LOW | MEDIUM | HIGH | CRITICAL
+  status         String    @default("OPEN")   // OPEN | CONTAINED | RESOLVED
+  createdById    Int
+  resolutionNote String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @default(now()) @updatedAt
+  resolvedAt     DateTime?
+
+  @@index([status])
+}
+
+// ─────────────────────────────────────────
+// SITE SETTINGS (design/content config)
+// ─────────────────────────────────────────
+model SiteSetting {
+  key         String   @id
+  draft       String   @default("{}")
+  published   String?
+  version     Int      @default(0)
+  updatedBy   Int?
+  updatedAt   DateTime @default(now()) @updatedAt
+  publishedAt DateTime?
+}
+
+// ─────────────────────────────────────────
+// SITE SETTING HISTORY (append-only)
+// ─────────────────────────────────────────
+model SiteSettingHistory {
+  id          Int      @id @default(autoincrement())
+  key         String
+  version     Int
+  value       String
+  publishedBy Int?
+  createdAt   DateTime @default(now())
+
+  @@unique([key, version])
+}
+
+// ─────────────────────────────────────────
+// SESSIONS (multi-device, replaces single refreshToken)
+// ─────────────────────────────────────────
+model Session {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String   // bcrypt hash of the refresh token
+  deviceInfo String?
+  ip         String?
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime?
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// ─────────────────────────────────────────
+// RATE LIMIT (fixed-window counters)
+// ─────────────────────────────────────────
+model RateLimit {
+  key        String   @id
+  count      Int      @default(0)
+  windowStart DateTime @default(now())
+
+  @@index([windowStart])
+}
