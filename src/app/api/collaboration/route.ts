@@ -3,6 +3,7 @@ import { isEmailVerified, unverifiedResponse } from '@/lib/guards';
 import prisma from '@/lib/prisma';
 import { verifyAccessToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
+import { notifyUser } from '@/lib/notify';
 
 export async function POST(request: Request) {
   try {
@@ -39,6 +40,8 @@ export async function POST(request: Request) {
       const collab = await prisma.collaborationRequest.create({
         data: { startupId: startup.id, fromStartupId: fromStartup.id, message: message?.trim() || null },
       });
+      await notifyUser(startup.founderId, 'New Collaboration Request',
+        `${fromStartup.name} wants to collaborate with ${startup.name}.`, `/startups/${startup.id}`);
       return NextResponse.json(collab, { status: 201 });
     }
 
@@ -55,6 +58,8 @@ export async function POST(request: Request) {
     const collab = await prisma.collaborationRequest.create({
       data: { startupId: parseInt(startupId), userId: decoded.id, message: message?.trim() || null },
     });
+    await notifyUser(startup.founderId, 'New Collaboration Request',
+      `Someone wants to collaborate with ${startup.name}.`, `/startups/${startup.id}`);
     return NextResponse.json(collab, { status: 201 });
   } catch (err) {
     console.error('POST /collaboration error:', err);

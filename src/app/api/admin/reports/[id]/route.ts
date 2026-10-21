@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
 import { verifyAccessToken } from '@/lib/auth';
+import { notifyUser } from '@/lib/notify';
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -18,7 +19,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     if (action === 'remove_content') {
       if (report.contentType === 'REVIEW') {
+        const review = await prisma.startupReview.findUnique({ where: { id: report.contentId }, include: { startup: { select: { name: true } } } });
         await prisma.startupReview.delete({ where: { id: report.contentId } }).catch(() => {});
+        if (review) {
+          await notifyUser(review.userId, 'Your Review Was Removed',
+            `Your review of ${review.startup.name} was removed for violating our content policy.`, '/terms');
+        }
       }
       await prisma.report.update({ where: { id: report.id }, data: { status: 'ACTIONED' } });
     } else {

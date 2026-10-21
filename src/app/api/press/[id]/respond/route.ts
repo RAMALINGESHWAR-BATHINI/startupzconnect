@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
 import { verifyAccessToken } from '@/lib/auth';
+import { notifyUser } from '@/lib/notify';
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -26,6 +27,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const response = await prisma.pressResponse.create({
       data: { pressRequestId: parseInt(id), startupId: startup.id, message: message.trim() },
     });
+
+    const pressRequest = await prisma.pressRequest.findUnique({ where: { id: parseInt(id) } });
+    if (pressRequest) {
+      await notifyUser(pressRequest.userId, 'New Response to Your Press Request',
+        `${startup.name} responded to "${pressRequest.title}".`, '/press');
+    }
+
     return NextResponse.json(response, { status: 201 });
   } catch (err) {
     console.error('POST /press/[id]/respond error:', err);

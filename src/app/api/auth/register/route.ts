@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { notifyAdmin } from '@/lib/alerts';
 import bcrypt from 'bcryptjs';
 import prisma from '@/lib/prisma';
 import { generateToken, hoursFromNow } from '@/lib/tokens';
@@ -8,10 +9,13 @@ const ALLOWED_ROLES = ['STUDENT', 'PROFESSIONAL', 'STARTUP', 'INVESTOR', 'MENTOR
 
 export async function POST(request: Request) {
   try {
-    const { name, email, password, role } = await request.json();
+    const { name, email, password, role, acceptTerms } = await request.json();
 
     if (!name || !email || !password) {
       return NextResponse.json({ error: 'Name, email, and password are required.' }, { status: 400 });
+    }
+    if (!acceptTerms) {
+      return NextResponse.json({ error: 'You must agree to the Terms of Service and Privacy Policy.' }, { status: 400 });
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return NextResponse.json({ error: 'Invalid email format.' }, { status: 400 });
@@ -32,7 +36,7 @@ export async function POST(request: Request) {
     const user = await prisma.user.create({
       data: {
         name: name.trim(), email: email.toLowerCase().trim(), password: hashedPassword, role: safeRole,
-        emailVerifyToken, emailVerifyExpires: hoursFromNow(24),
+        emailVerifyToken, emailVerifyExpires: hoursFromNow(24), termsAcceptedAt: new Date(),
       },
       select: { id: true, name: true, email: true, role: true },
     });
@@ -50,6 +54,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'An account with this email already exists.' }, { status: 400 });
     }
     console.error('Registration error:', err);
+    await notifyAdmin('Registration error', err);
     return NextResponse.json({ error: 'Registration failed. Please try again.' }, { status: 500 });
   }
 }

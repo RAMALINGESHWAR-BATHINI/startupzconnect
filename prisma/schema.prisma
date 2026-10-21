@@ -41,6 +41,8 @@ model User {
   mentorBio           String?
   mentorIsActive      Boolean @default(false)
 
+  termsAcceptedAt     DateTime?
+
   refreshToken String?
 
   // Email verification
@@ -68,6 +70,7 @@ model User {
   eventRSVPs            EventRSVP[]
   pressRequests         PressRequest[]
   reportsFiled          Report[]
+  notifications         Notification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -538,4 +541,20 @@ model InstitutionPartner {
   startups     Startup[]
 
   @@index([isActive])
+}
+
+// ─────────────────────────────────────────
+// NOTIFICATIONS (in-app; admin-to-user + system events)
+// ─────────────────────────────────────────
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  link      String?  // optional relative path to navigate to on click
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
 }

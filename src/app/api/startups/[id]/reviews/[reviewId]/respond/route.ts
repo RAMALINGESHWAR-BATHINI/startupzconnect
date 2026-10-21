@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
 import { verifyAccessToken } from '@/lib/auth';
+import { notifyUser } from '@/lib/notify';
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string; reviewId: string }> }) {
   try {
@@ -34,6 +35,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       where: { id: review.id },
       data: { startupResponse: response.trim() },
     });
+    await notifyUser(review.userId, `${startup.name} responded to your review`,
+      response.trim().slice(0, 140), `/startups/${startup.id}`);
     return NextResponse.json(updated);
   } catch (err) {
     console.error('POST /reviews/[reviewId]/respond error:', err);

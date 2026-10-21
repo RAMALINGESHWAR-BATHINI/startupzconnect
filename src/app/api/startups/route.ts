@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { notifyAdmin } from '@/lib/alerts';
 import { isEmailVerified, unverifiedResponse } from '@/lib/guards';
 import prisma from '@/lib/prisma';
 import { verifyAccessToken } from '@/lib/auth';
@@ -99,6 +100,7 @@ export async function POST(request: Request) {
     return NextResponse.json(startup, { status: 201 });
   } catch (err) {
     console.error('POST /startups error:', err);
+    await notifyAdmin('POST /startups error', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

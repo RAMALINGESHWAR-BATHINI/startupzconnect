@@ -1,21 +1,45 @@
 /**
- * Minimal mail-sending stub.
+ * Email sending via Resend.
  *
- * This project does not yet have an email provider wired up (see SETUP.md —
- * Resend is the recommended next addition). Until then, verification and
- * reset links are logged to the server console so the flow is fully testable
- * in development. Swap the body of sendMail() for a real Resend/Postmark
- * call when ready — nothing else in the app needs to change.
+ * Requires RESEND_API_KEY and RESEND_FROM_EMAIL in the environment.
+ * Without them, emails are logged to the server console instead — fully
+ * functional for local development, but nobody receives anything in
+ * production until these two env vars are set.
  */
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'StartupzConnect <noreply@startupzconnect.com>';
+
 export async function sendMail(to: string, subject: string, bodyText: string) {
-  if (process.env.RESEND_API_KEY) {
-    // Example wiring for Resend once RESEND_API_KEY is set:
-    // await fetch('https://api.resend.com/emails', {
-    //   method: 'POST',
-    //   headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ from: 'StartupzConnect <noreply@startupzconnect.com>', to, subject, text: bodyText }),
-    // });
+  if (RESEND_API_KEY) {
+    try {
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: RESEND_FROM_EMAIL,
+          to,
+          subject,
+          text: bodyText,
+        }),
+      });
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => '');
+        console.error(`Resend API error (${res.status}):`, errBody);
+      }
+      return;
+    } catch (err) {
+      console.error('Failed to send email via Resend:', err);
+      // Fall through to console logging below so the message isn't silently lost.
+    }
   }
-  // Always log in dev so the flow is testable without an email provider.
-  console.log(`\n─── MAIL (stub) ───\nTo: ${to}\nSubject: ${subject}\n\n${bodyText}\n───────────────────\n`);
+
+  // Dev fallback / failure fallback — always visible in server logs.
+  console.log(`\n─── MAIL ${RESEND_API_KEY ? '(send failed, logged instead)' : '(stub — no RESEND_API_KEY set)'} ───\nTo: ${to}\nSubject: ${subject}\n\n${bodyText}\n───────────────────\n`);
+}
+
+export function emailBackend(): 'resend' | 'console-stub' {
+  return RESEND_API_KEY ? 'resend' : 'console-stub';
 }

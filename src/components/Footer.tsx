@@ -10,10 +10,12 @@ export default function Footer() {
           <span>startupZ<span className="text-indigo-400">connect</span></span>
         </div>
         
-        <div className="flex items-center gap-8 text-sm text-slate-500">
+        <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-slate-500">
           <Link href="/startups" className="hover:text-white transition-colors">Startups</Link>
           <Link href="/jobs" className="hover:text-white transition-colors">Jobs</Link>
           <Link href="/investments" className="hover:text-white transition-colors">Invest</Link>
+          <Link href="/terms" className="hover:text-white transition-colors">Terms</Link>
+          <Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link>
           <Link href="/login" className="hover:text-white transition-colors">Login</Link>
         </div>
 

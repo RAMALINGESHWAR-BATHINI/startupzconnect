@@ -6,6 +6,7 @@ import api from '@/lib/api';
 import Link from 'next/link';
 import { Building2, Loader2, AlertCircle, CheckCircle, ArrowLeft, Trash2, Users,
   BookOpen, Plus, TrendingUp, Briefcase, UserPlus, ClipboardList, FileCheck, Handshake, ExternalLink, Check, X } from 'lucide-react';
+import { FileUpload } from '@/components/ui/FileUpload';
 
 const DOMAINS = ['AI','FinTech','HealthTech','EdTech','SaaS','E-commerce','Logistics','CleanTech','GameTech','Other'];
 const STAGES  = ['IDEA','MVP','PRE_SEED','SEED','SERIES_A','SERIES_B','BOOTSTRAPPED'];
@@ -246,8 +247,11 @@ export default function ManageStartupPage() {
                 className="px-4 py-2.5 rounded-lg bg-slate-900 border border-white/10 text-white placeholder:text-slate-600 focus:outline-none focus:border-teal-500 text-sm" />
               <input placeholder="LinkedIn URL" value={newMember.linkedin} onChange={e => setNewMember(m => ({...m,linkedin:e.target.value}))}
                 className="px-4 py-2.5 rounded-lg bg-slate-900 border border-white/10 text-white placeholder:text-slate-600 focus:outline-none focus:border-teal-500 text-sm" />
-              <input placeholder="Photo URL (optional)" value={newMember.photoUrl} onChange={e => setNewMember(m => ({...m,photoUrl:e.target.value}))}
-                className="px-4 py-2.5 rounded-lg bg-slate-900 border border-white/10 text-white placeholder:text-slate-600 focus:outline-none focus:border-teal-500 text-sm" />
+              <div className="sm:col-span-2">
+                <FileUpload folder="team-photos" accept="image/jpeg,image/png,image/webp" label="Upload photo (optional)"
+                  currentUrl={newMember.photoUrl} onUploaded={url => setNewMember(m => ({...m, photoUrl: url}))}
+                  onClear={() => setNewMember(m => ({...m, photoUrl: ''}))} />
+              </div>
               <label className="flex items-center gap-3 px-4 py-2.5 rounded-lg border border-white/10 cursor-pointer">
                 <input type="checkbox" checked={newMember.isFounder} onChange={e => setNewMember(m => ({...m,isFounder:e.target.checked}))} className="accent-teal-500" />
                 <span className="text-sm text-slate-300">Mark as Founder</span>
@@ -380,9 +384,15 @@ export default function ManageStartupPage() {
                 <option value="SHOP_ACT">Shop & Establishment Act</option>
                 <option value="OTHER">Other</option>
               </select>
-              <input required type="url" placeholder="Link to document *" value={docForm.fileUrl} onChange={e => setDocForm(f => ({...f, fileUrl: e.target.value}))}
-                className="px-4 py-2.5 rounded-lg bg-slate-900 border border-white/10 text-white placeholder:text-slate-600 text-sm sm:col-span-2" />
+              <div className="sm:col-span-2">
+                <FileUpload folder="documents" accept="application/pdf,image/jpeg,image/png" label="Upload document (PDF or image, max 10MB)"
+                  currentUrl={docForm.fileUrl} onUploaded={url => setDocForm(f => ({...f, fileUrl: url}))}
+                  onClear={() => setDocForm(f => ({...f, fileUrl: ''}))} />
+              </div>
             </div>
+            <p className="text-xs text-slate-500">Or paste a link instead (Google Drive, Dropbox — set to "anyone with the link can view"):</p>
+            <input type="url" placeholder="https://drive.google.com/..." value={docForm.fileUrl} onChange={e => setDocForm(f => ({...f, fileUrl: e.target.value}))}
+              className="w-full px-4 py-2.5 rounded-lg bg-slate-900 border border-white/10 text-white placeholder:text-slate-600 text-sm" />
             <button type="submit" disabled={addingDoc}
               className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white text-sm font-medium">
               {addingDoc ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Submit for Verification

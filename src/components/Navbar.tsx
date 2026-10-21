@@ -2,9 +2,10 @@
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { Rocket, Menu, X, LogOut, LayoutDashboard, User as UserIcon, Settings,
-  ChevronDown, PlusCircle, TrendingUp, Shield, Building2, Users, CalendarDays, Landmark, Lightbulb, Newspaper } from 'lucide-react';
+  ChevronDown, PlusCircle, TrendingUp, Shield, Building2, Users, CalendarDays, Landmark, Lightbulb, Newspaper, ShieldAlert, Bell } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { BadgeTier } from './ui/Badge';
+import NotificationBell from './NotificationBell';
 
 const NAV_LINKS = [
   { href: '/startups',    label: 'Startups' },
@@ -75,6 +76,7 @@ export default function Navbar() {
 
         {/* Right */}
         <div className="hidden md:flex items-center gap-4">
+          {user && <NotificationBell />}
           {user ? (
             <div className="relative" ref={userMenuRef}>
               <button onClick={() => setUserMenuOpen(!userMenuOpen)}
@@ -130,6 +132,14 @@ export default function Navbar() {
                     </Link>
                   </>)}
 
+                  {user.role === 'ADMIN' && (<>
+                    <div className="my-1 border-t border-white/5" />
+                    <Link href="/admin" onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 transition-colors">
+                      <ShieldAlert className="w-4 h-4" /> Admin
+                    </Link>
+                  </>)}
+
                   <div className="my-1 border-t border-white/5" />
                   <button onClick={() => { logout(); setUserMenuOpen(false); }}
                     className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors">
@@ -170,11 +180,13 @@ export default function Navbar() {
           <div className="my-1 border-t border-white/5" />
           {user ? (<>
             <Link href="/dashboard" onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/5">Dashboard</Link>
+            <Link href="/dashboard/notifications" onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/5">Notifications</Link>
             <Link href="/dashboard/profile" onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/5">Profile</Link>
             <Link href="/dashboard/settings" onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/5">Settings</Link>
             {isFounder && <Link href="/dashboard/startups/create" onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg text-indigo-400">Create Startup</Link>}
             {isFounder && <Link href="/dashboard/inspection/request" onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg text-indigo-400">Request Inspection</Link>}
             {isInvestor && <Link href="/dashboard/investor-profile" onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg text-emerald-400">Investor Profile</Link>}
+            {user.role === 'ADMIN' && <Link href="/admin" onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg text-amber-400">Admin</Link>}
             <button onClick={() => { logout(); setOpen(false); }} className="text-left px-3 py-2 rounded-lg text-red-400 hover:bg-red-500/10">Sign Out</button>
           </>) : (<>
             <Link href="/login" onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg text-slate-300 hover:text-white">Log in</Link>

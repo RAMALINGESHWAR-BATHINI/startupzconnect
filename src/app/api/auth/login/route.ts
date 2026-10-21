@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { notifyAdmin } from '@/lib/alerts';
 import bcrypt from 'bcryptjs';
 import prisma from '@/lib/prisma';
 import { signAccessToken, signRefreshToken, attachAuthCookies } from '@/lib/auth';
@@ -65,6 +66,7 @@ export async function POST(request: Request) {
     return response;
   } catch (err) {
     console.error('Login error:', err);
+    await notifyAdmin('Login error', err);
     return NextResponse.json({ error: 'Login failed. Please try again.' }, { status: 500 });
   }
 }

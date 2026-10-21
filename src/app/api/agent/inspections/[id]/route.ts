@@ -42,7 +42,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const insp = await prisma.inspectionReport.findUnique({ where: { id: parseInt(id) } });
     if (!insp || insp.agentId !== agent.id) return NextResponse.json({ error: 'Inspection not found.' }, { status: 404 });
 
-    const { legitimacyScore, teamScore, productScore, workspaceScore, momentumScore, overallScore, agentNotes, recommendedBadge, status } = await request.json();
+    const { legitimacyScore, teamScore, productScore, workspaceScore, momentumScore, overallScore, agentNotes, recommendedBadge, status,
+      exteriorPhotos, interiorPhotos, teamPhotos, productPhotos } = await request.json();
 
     for (const s of [legitimacyScore, teamScore, productScore, workspaceScore, momentumScore]) {
       if (s !== undefined && (s < 1 || s > 10)) return NextResponse.json({ error: 'Scores must be between 1 and 10.' }, { status: 400 });
@@ -54,6 +55,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         legitimacyScore, teamScore, productScore, workspaceScore, momentumScore, overallScore,
         agentNotes: agentNotes?.trim() || null, recommendedBadge, status: status || 'SUBMITTED',
         visitedAt: new Date(), submittedAt: new Date(),
+        ...(exteriorPhotos !== undefined ? { exteriorPhotos } : {}),
+        ...(interiorPhotos !== undefined ? { interiorPhotos } : {}),
+        ...(teamPhotos !== undefined ? { teamPhotos } : {}),
+        ...(productPhotos !== undefined ? { productPhotos } : {}),
       },
     });
 

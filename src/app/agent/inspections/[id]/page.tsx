@@ -3,7 +3,8 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
-import { Loader2, ArrowLeft, CheckCircle, AlertCircle, Building2 } from 'lucide-react';
+import { Loader2, ArrowLeft, CheckCircle, AlertCircle, Building2, X } from 'lucide-react';
+import { FileUpload } from '@/components/ui/FileUpload';
 
 const SCORE_FIELDS = [
   { key: 'legitimacyScore', label: 'Legitimacy', desc: 'Does the address, docs, and setup all check out?' },
@@ -12,6 +13,13 @@ const SCORE_FIELDS = [
   { key: 'workspaceScore',  label: 'Workspace Quality', desc: 'Is this a real, functional working environment?' },
   { key: 'momentumScore',   label: 'Growth Momentum', desc: 'Is there visible activity and progress?' },
 ];
+
+const PHOTO_SECTIONS = [
+  { key: 'exteriorPhotos', label: 'Office Exterior' },
+  { key: 'interiorPhotos', label: 'Office Interior' },
+  { key: 'teamPhotos',     label: 'Team Photos' },
+  { key: 'productPhotos',  label: 'Product / Work in Progress' },
+] as const;
 
 export default function AgentInspectionDetail() {
   const { id } = useParams();
@@ -27,6 +35,9 @@ export default function AgentInspectionDetail() {
   });
   const [notes, setNotes] = useState('');
   const [recommendedBadge, setRecommendedBadge] = useState('FIELD_VERIFIED');
+  const [photos, setPhotos] = useState<Record<string, string[]>>({
+    exteriorPhotos: [], interiorPhotos: [], teamPhotos: [], productPhotos: [],
+  });
 
   useEffect(() => {
     if (!authLoading && !user) { router.push('/login'); return; }
@@ -38,11 +49,24 @@ export default function AgentInspectionDetail() {
       .finally(() => setLoading(false));
   }, [id]);
 
+  const addPhoto = (section: string, url: string) => {
+    setPhotos(p => ({ ...p, [section]: [...(p[section] || []), url] }));
+  };
+  const removePhoto = (section: string, url: string) => {
+    setPhotos(p => ({ ...p, [section]: (p[section] || []).filter(u => u !== url) }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setSubmitting(true); setError('');
     const overallScore = Object.values(scores).reduce((a,b)=>a+b,0) / Object.values(scores).length;
     try {
-      await api.patch(`/agent/inspections/${id}`, { ...scores, overallScore, agentNotes: notes, recommendedBadge, status: 'SUBMITTED' });
+      await api.patch(`/agent/inspections/${id}`, {
+        ...scores, overallScore, agentNotes: notes, recommendedBadge, status: 'SUBMITTED',
+        exteriorPhotos: JSON.stringify(photos.exteriorPhotos),
+        interiorPhotos: JSON.stringify(photos.interiorPhotos),
+        teamPhotos: JSON.stringify(photos.teamPhotos),
+        productPhotos: JSON.stringify(photos.productPhotos),
+      });
       setDone(true);
     } catch (err: any) {
       setError(err?.response?.data?.error || 'Failed to submit report.');
@@ -112,10 +136,32 @@ export default function AgentInspectionDetail() {
               <option value="NONE">Failed — Do not verify</option>
             </select>
           </div>
+        </div>
 
-          <p className="text-xs text-slate-500">
-            Note: In production, this form includes photo upload (exterior, interior, team, product) via Cloudflare R2. Photo upload requires file storage setup — see the tech stack notes.
-          </p>
+        {/* Photo evidence — the core of what makes a field inspection trustworthy */}
+        <div className="p-6 rounded-2xl border border-white/10 bg-white/[0.02] space-y-6">
+          <p className="text-sm font-semibold text-white">Photo Evidence</p>
+          {PHOTO_SECTIONS.map(section => (
+            <div key={section.key}>
+              <label className="block text-sm font-medium text-slate-300 mb-2">{section.label}</label>
+              {photos[section.key]?.length > 0 && (
+                <div className="grid grid-cols-3 gap-2 mb-2">
+                  {photos[section.key].map(url => (
+                    <div key={url} className="relative group">
+                      <img src={url} alt={section.label} className="w-full aspect-video object-cover rounded-lg bg-slate-800" />
+                      <button type="button" onClick={() => removePhoto(section.key, url)}
+                        className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/70 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <FileUpload folder="inspections" accept="image/jpeg,image/png,image/webp"
+                label={`Add ${section.label.toLowerCase()} photo`}
+                onUploaded={url => addPhoto(section.key, url)} />
+            </div>
+          ))}
         </div>
 
         <button type="submit" disabled={submitting}

@@ -177,3 +177,92 @@ gap noted separately.
   require it yet).
 - Payment gateway integration for inspection fees.
 - Email provider wiring (still logs to console — see the mailer section above).
+
+## Phase 1 completion pass (this session)
+
+Everything from the Phase 1 checklist is now implemented, except the three
+items explicitly deferred: payment gateway, city-based agent matching, and
+the office check-in QR flow (all correctly out of scope while you're the
+only agent and inspection is free).
+
+### 🔴 Former blockers — now resolved
+
+1. **Cloudflare R2 file storage** — `src/lib/storage.ts` uploads to R2 via
+   its S3-compatible API when `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` /
+   `R2_SECRET_ACCESS_KEY` / `R2_BUCKET_NAME` / `R2_PUBLIC_URL` are set. Without
+   them, it falls back to writing under `/public/uploads` — fine for
+   `npm run dev`, but this fallback does NOT work on Cloudflare Workers, so R2
+   must be configured before going live. A reusable `<FileUpload>` component
+   and a generic `/api/uploads` endpoint (with type/size validation) are wired
+   into: team member photos, startup documents, job application resumes, and
+   — most importantly — **agent inspection photos** (exterior/interior/team/
+   product, multi-photo per category). This was the single most important
+   piece of Phase 1, since it's what makes an inspection report verifiable.
+2. **Real email sending** — `src/lib/mailer.ts` now calls the Resend API when
+   `RESEND_API_KEY` is set. Falls back to console logging (with the failure
+   reason) if the key is missing or the API call fails, so a bad email never
+   silently disappears.
+3. **Admin/agent bootstrap** — `npm run db:seed` (`prisma/seed.ts`) creates
+   your ADMIN account from `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `ADMIN_NAME`,
+   registers it as a FieldAgent (Phase 1 = you are the only inspector), and
+   seeds the Grants page with 6 real Indian funding schemes. Safe to re-run —
+   everything is an upsert.
+4. **Terms of Service & Privacy Policy** — real pages at `/terms` and
+   `/privacy`, linked from the footer. Registration now requires checking "I
+   agree to the Terms and Privacy Policy" before the account is created, and
+   records `termsAcceptedAt` on the user record as a timestamped proof of
+   consent.
+5. **Environment variable checklist** — `.env.example` now lists every
+   variable this app uses, grouped by what breaks if you skip it (auth is
+   required; email and storage are "required before real users"; admin seed
+   and error alerting are optional but recommended).
+
+### 🟠 Former "should do" items — now resolved
+
+6. **Admin home dashboard** (`/admin`) — aggregates pending counts across
+   inspections, documents, and reports into one page with direct links, plus
+   total startup/user counts. No more checking four separate URLs.
+7. **Error alerting** — `src/lib/alerts.ts` posts to a Slack-compatible
+   `ERROR_WEBHOOK_URL` (no paid SDK/account required — a Slack incoming
+   webhook takes 2 minutes to set up) whenever a critical server error fires.
+   Wired into registration, login, startup creation, inspection/document
+   admin decisions, and file uploads, plus a Next.js `instrumentation.ts`
+   hook that catches any other uncaught server error, and a `global-error.tsx`
+   boundary for uncaught client-side render errors.
+8. **Admin-to-user messaging / notifications system** — a full `Notification`
+   model, in-app bell dropdown in the navbar (polls every 60s), a full
+   `/dashboard/notifications` page, and an admin "send a direct notification"
+   form at the bottom of `/admin`. System notifications fire automatically
+   on: inspection approved/rejected, document verified/rejected, new
+   collaboration request (including startup-to-startup), founder responded to
+   your review, and a startup responded to your press request.
+9. **Grants seed data** — see item 3; the page is no longer empty on day one.
+10. **Mobile responsiveness** — spot-checked registration, startup profile,
+    and the review form; all already used responsive Tailwind classes from
+    earlier sessions. I did not test on physical devices — this is a code-
+    level review, not a substitute for actually opening the site on a phone
+    before you send the link to your first founder.
+
+### Also done — per-page SEO metadata (was on the broader gap list, not excluded)
+
+All ten remaining static pages (`/investments`, `/cofounders`, `/mentors`,
+`/events`, `/grants`, `/press`, `/login`, `/register`) were split into the
+same server-wrapper + client-component pattern used earlier for `/startups`
+and `/jobs`, each now with its own real `<title>`/description. The two
+dynamic detail pages (`/startups/[id]`, `/jobs/[id]`) use `generateMetadata`
+with a direct Prisma lookup, so a shared link to a specific startup or job
+shows that startup's actual name, not the generic site title. `sitemap.ts`
+was also extended to list every real startup and open job, not just the
+static routes.
+
+### New dependencies — run `npm install` before anything else
+
+This session added `@aws-sdk/client-s3` (R2 upload), `tsx` (runs the seed
+script), and `vitest` (from the previous session, if not already installed).
+
+### What's still correctly out of scope for Phase 1
+
+- Payment gateway (Razorpay/Stripe) — inspection is free and manual
+- City-based agent matching — you are the only agent
+- Office check-in QR flow — not needed until reviews must scale past founders
+  you personally know
