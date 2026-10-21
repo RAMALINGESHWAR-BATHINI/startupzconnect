@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import LegalReadTracker from '@/components/LegalReadTracker';
 
 export const metadata: Metadata = {
   title: 'Terms of Service | startupZconnect',
@@ -16,6 +17,7 @@ const Section = ({ num, title, children }: { num: string; title: string; childre
 export default function TermsPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-16">
+      <LegalReadTracker doc="terms" />
       <h1 className="text-3xl font-bold text-white mb-2">Terms of Service</h1>
       <p className="text-slate-500 text-sm mb-12">Version 1.0 · Effective from launch</p>
 

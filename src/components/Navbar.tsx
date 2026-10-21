@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
-import { Rocket, Menu, X, LogOut, LayoutDashboard, User as UserIcon, Settings,
+import { Menu, X, LogOut, LayoutDashboard, User as UserIcon, Settings,
   ChevronDown, PlusCircle, TrendingUp, Shield, Building2, Users, CalendarDays, Landmark, Lightbulb, Newspaper, ShieldAlert, Bell } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { BadgeTier } from './ui/Badge';
@@ -44,10 +44,8 @@ export default function Navbar() {
     <nav className="fixed top-0 left-0 right-0 z-50 border-b border-white/5 bg-slate-950/90 backdrop-blur-xl">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5 font-bold text-lg text-white">
-          <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center">
-            <Rocket className="w-4 h-4 text-white" />
-          </div>
+        <Link href="/" className="flex items-center gap-2.5 font-bold text-lg text-white hover:opacity-90 transition-opacity">
+          <img src="/favicon.ico" alt="startupZconnect logo" className="w-8 h-8 rounded-lg" />
           <span>startupZ<span className="text-indigo-400">connect</span></span>
         </Link>
 

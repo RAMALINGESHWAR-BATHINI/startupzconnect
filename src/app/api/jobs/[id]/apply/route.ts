@@ -14,7 +14,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     const decoded = verifyAccessToken(token) as any;
     if (!decoded) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    if (!(await isEmailVerified(decoded.id, decoded.role))) return unverifiedResponse();
+    if (!(await isEmailVerified(decoded.id))) return unverifiedResponse();
 
     const job = await prisma.jobOpening.findUnique({ where: { id: jobId }, include: { startup: true } });
     if (!job) return NextResponse.json({ error: 'Job not found.' }, { status: 404 });

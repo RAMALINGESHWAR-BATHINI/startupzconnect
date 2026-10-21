@@ -26,8 +26,8 @@
 ## Security (Cloudflare Turnstile)
 | Variable | Description |
 |----------|-------------|
-| TURNSTILE_SITE_KEY | Turnstile site key (client-side) |
-| TURNSTILE_SECRET_KEY | Turnstile secret key (server-side, never exposed) |
+| TURNSTILE_SECRET_KEY | Turnstile secret key (server-side, never exposed). Enables the check. |
+| TURNSTILE_SITE_KEY | Turnstile site key (client-side). Not currently read by the app — set it only if you add a client-side widget. |
 
 ## Admin Bootstrap (Seed Only)
 | Variable | Description |

@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const decoded = verifyAccessToken(token) as any;
     if (!decoded) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    if (!(await isEmailVerified(decoded.id, decoded.role))) return unverifiedResponse();
+    if (!(await isEmailVerified(decoded.id))) return unverifiedResponse();
     if (decoded.role !== 'STARTUP' && decoded.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Only startup accounts can post events.' }, { status: 403 });
     }

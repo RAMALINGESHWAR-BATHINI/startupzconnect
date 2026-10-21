@@ -1,9 +1,10 @@
 'use client';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
-import { User, Mail, Lock, AlertCircle, Loader2, Eye, EyeOff, ChevronRight, ChevronLeft, CheckCircle, FileText, Building2, Briefcase, Building, Users, Percent, Ticket } from 'lucide-react';
+import { User, Mail, Lock, AlertCircle, Loader2, Eye, EyeOff, ChevronRight, ChevronLeft, CheckCircle, FileText, Building2, Briefcase, Building, Users, Percent, Ticket, ExternalLink, CheckCircle2, Info } from 'lucide-react';
 import { ROLE_FIELDS, SIGNUP_ROLES, validateRegistrationProfile } from '@/lib/registration-rules';
+import { getLegalDocsRead, clearLegalDocsRead, type LegalDoc } from '@/lib/legal-consent';
 
 const roleIcons: Record<string, React.ElementType> = {
   STUDENT: Building2,
@@ -16,19 +17,43 @@ const roleIcons: Record<string, React.ElementType> = {
 
 const steps = ['account', 'profile', 'terms', 'review'];
 
+const DOC_META: Record<LegalDoc, { label: string; href: string }> = {
+  terms: { label: 'Terms of Service', href: '/terms' },
+  privacy: { label: 'Privacy Policy', href: '/privacy' },
+};
+
 export default function RegisterWizard() {
   const { register } = useAuth();
   const [stepIndex, setStepIndex] = useState(0);
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'STUDENT' as string });
   const [profile, setProfile] = useState<Record<string, string>>({});
   const [acceptTerms, setAcceptTerms] = useState(false);
-const [error, setError] = useState('');
-const [loading, setLoading] = useState(false);
-const [showPassword, setShowPassword] = useState(false);
+  const [docsRead, setDocsRead] = useState<Record<LegalDoc, boolean>>({ terms: false, privacy: false });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const role = form.role;
   const roleSpecs = ROLE_FIELDS[role as keyof typeof ROLE_FIELDS] ?? [];
   const step = steps[stepIndex];
+
+  const bothDocsRead = docsRead.terms && docsRead.privacy;
+
+  // The legal documents are opened in a separate tab, so the read-state is
+  // carried through localStorage. Pick it up on focus and via the cross-tab
+  // `storage` event.
+  useEffect(() => {
+    const sync = () => setDocsRead(getLegalDocsRead());
+    sync();
+    window.addEventListener('storage', sync);
+    window.addEventListener('focus', sync);
+    document.addEventListener('visibilitychange', sync);
+    return () => {
+      window.removeEventListener('storage', sync);
+      window.removeEventListener('focus', sync);
+      document.removeEventListener('visibilitychange', sync);
+    };
+  }, []);
 
   const isValidStep = useCallback((): boolean => {
     if (step === 'account') {
@@ -41,9 +66,39 @@ const [showPassword, setShowPassword] = useState(false);
       const result = validateRegistrationProfile(role, { ...form, ...profile });
       return result.ok;
     }
-    if (step === 'terms') return acceptTerms;
+    if (step === 'terms') return bothDocsRead && acceptTerms;
     return true;
-  }, [step, form, profile, role, acceptTerms]);
+  }, [step, form, profile, role, acceptTerms, bothDocsRead]);
+
+  // Returns false and sets an explanatory message instead of silently advancing.
+  const validateCurrentStep = (): boolean => {
+    if (step === 'account') {
+      if (!form.name.trim()) { setError('Please enter your full name.'); return false; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) { setError('Please enter a valid email address.'); return false; }
+      if (form.password.length < 8) { setError('Password must be at least 8 characters.'); return false; }
+      return true;
+    }
+    if (step === 'profile') {
+      const result = validateRegistrationProfile(role, { ...form, ...profile });
+      if (!result.ok) {
+        setError(Object.values(result.errors)[0]);
+        return false;
+      }
+      return true;
+    }
+    if (step === 'terms') {
+      if (!docsRead.terms || !docsRead.privacy) {
+        setError('You must open and read both the Terms of Service and the Privacy Policy before you can tick the agreement box.');
+        return false;
+      }
+      if (!acceptTerms) {
+        setError('Please tick the agreement box to confirm you have read and accept the Terms of Service and Privacy Policy.');
+        return false;
+      }
+      return true;
+    }
+    return true;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,14 +112,20 @@ const [showPassword, setShowPassword] = useState(false);
       }
     }
 
+    if (!docsRead.terms || !docsRead.privacy) {
+      setError('You must open and read both the Terms of Service and the Privacy Policy before you can create an account.');
+      return;
+    }
+
     if (!acceptTerms) {
-      setError('Please agree to the Terms of Service and Privacy Policy to continue.');
+      setError('Please tick the agreement box to confirm you have read and accept the Terms of Service and Privacy Policy.');
       return;
     }
 
     setLoading(true);
     try {
       await register(form.name, form.email, form.password, form.role, acceptTerms, profile);
+      clearLegalDocsRead();
     } catch (err: any) {
       setError(err?.response?.data?.error || 'Registration failed. Please try again.');
     } finally {
@@ -73,11 +134,12 @@ const [showPassword, setShowPassword] = useState(false);
   };
 
   const nextStep = () => {
-    if (!isValidStep()) return;
+    setError('');
+    if (!validateCurrentStep()) return;
     setStepIndex((i) => Math.min(i + 1, steps.length - 1));
   };
 
-  const prevStep = () => setStepIndex((i) => Math.max(i - 1, 0));
+  const prevStep = () => { setError(''); setStepIndex((i) => Math.max(i - 1, 0)); };
 
   const progress = ((stepIndex + 1) / steps.length) * 100;
 
@@ -104,7 +166,7 @@ const [showPassword, setShowPassword] = useState(false);
 
         <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-8 backdrop-blur-sm">
           {step === 'account' && (
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={(e) => { e.preventDefault(); nextStep(); }} className="space-y-5">
               <div className="text-center mb-8">
                 <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-indigo-600 mb-4">
                   <User className="w-6 h-6 text-white" />
@@ -181,9 +243,9 @@ const [showPassword, setShowPassword] = useState(false);
               </div>
 
               <div className="flex justify-between pt-2">
-                <button type="button" onClick={handleSubmit} disabled={loading || !isValidStep()}
+                <button type="button" onClick={nextStep} disabled={loading}
                   className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white font-semibold text-sm transition-colors">
-                  {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating account...</> : 'Continue to Profile'}
+                  Continue to Profile<ChevronRight className="w-4 h-4" />
                 </button>
               </div>
             </form>
@@ -205,7 +267,7 @@ const [showPassword, setShowPassword] = useState(false);
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={(e) => { e.preventDefault(); nextStep(); }} className="space-y-4">
                 {roleSpecs.map((f) => (
                   <div key={f.key}>
                     <label className="block text-sm font-medium text-slate-300 mb-1.5">
@@ -244,7 +306,7 @@ const [showPassword, setShowPassword] = useState(false);
                     className="w-48 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg border border-white/10 bg-white/[0.02] text-white hover:bg-white/5 transition-colors text-sm">
                     <ChevronLeft className="w-4 h-4" /> Back
                   </button>
-                  <button type="submit" disabled={loading || !isValidStep()}
+                  <button type="submit" disabled={loading}
                     className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white font-semibold text-sm transition-colors">
                     Continue {stepIndex === steps.length - 2 ? 'to Terms' : ''}<ChevronRight className="w-4 h-4" />
                   </button>
@@ -276,22 +338,49 @@ const [showPassword, setShowPassword] = useState(false);
                 <p className="mb-0"><strong>Admin roles.</strong> Administrative access is granted only through server-side approval and is recorded in the audit log.</p>
               </div>
 
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input type="checkbox" checked={acceptTerms} onChange={(e) => setAcceptTerms(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 accent-indigo-500 rounded" />
-                <span className="text-xs text-slate-400">
-                  I agree to the <Link href="/terms" target="_blank" className="text-indigo-400 hover:text-indigo-300">Terms of Service</Link> and{' '}
-                  <Link href="/privacy" target="_blank" className="text-indigo-400 hover:text-indigo-300">Privacy Policy</Link>.
-                </span>
-              </label>
+              <div className="space-y-3 p-4 rounded-xl bg-white/[0.02] border border-white/10">
+                <p className="text-xs font-medium text-slate-300">Legal Agreement</p>
+
+                {(['terms', 'privacy'] as LegalDoc[]).map((doc) => (
+                  <div key={doc} className="flex items-center justify-between gap-3">
+                    <Link href={DOC_META[doc].href} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-sm text-indigo-400 hover:text-indigo-300 transition-colors">
+                      Read the full {DOC_META[doc].label} <ExternalLink className="w-3.5 h-3.5" />
+                    </Link>
+                    {docsRead[doc]
+                      ? <span className="flex items-center gap-1.5 text-xs text-emerald-400 flex-shrink-0">
+                          <CheckCircle2 className="w-4 h-4" /> Read
+                        </span>
+                      : <span className="flex items-center gap-1.5 text-xs text-slate-500 flex-shrink-0">
+                          <Info className="w-3.5 h-3.5" /> Not opened yet
+                        </span>}
+                  </div>
+                ))}
+
+                {!bothDocsRead && (
+                  <p className="text-xs text-amber-400">
+                    Open both documents in a new tab and read them. The agreement box unlocks once both pages
+                    have been opened — then come back here.
+                  </p>
+                )}
+
+                <label className={`flex items-start gap-3 pt-2 border-t border-white/5 ${bothDocsRead ? 'cursor-pointer' : 'cursor-not-allowed'}`}>
+                  <input type="checkbox" checked={acceptTerms} onChange={(e) => setAcceptTerms(e.target.checked)}
+                    disabled={!bothDocsRead}
+                    className="mt-0.5 w-4 h-4 accent-indigo-500 rounded disabled:opacity-40 disabled:cursor-not-allowed" />
+                  <span className={`text-xs ${bothDocsRead ? 'text-slate-400' : 'text-slate-600'}`}>
+                    I have read and agree to the Terms of Service and Privacy Policy.
+                  </span>
+                </label>
+              </div>
 
               <div className="flex justify-between pt-2">
                 <button type="button" onClick={prevStep}
                   className="w-48 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg border border-white/10 bg-white/[0.02] text-white hover:bg-white/5 transition-colors text-sm">
                   <ChevronLeft className="w-4 h-4" /> Back
                 </button>
-                <button type="button" onClick={nextStep} disabled={!acceptTerms}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white font-semibold text-sm transition-colors">
+                <button type="button" onClick={nextStep}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm transition-colors">
                   Review &amp; Submit<ChevronRight className="w-4 h-4" />
                 </button>
               </div>
@@ -332,7 +421,19 @@ const [showPassword, setShowPassword] = useState(false);
                     ))}
                   </div>
                 )}
+                <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                  <span className="text-sm text-slate-400">Terms &amp; Privacy accepted</span>
+                  <span className={`text-sm ${acceptTerms ? 'text-emerald-400' : 'text-amber-400'}`}>
+                    {acceptTerms ? 'Yes' : 'Not yet'}
+                  </span>
+                </div>
               </div>
+
+              {error && (
+                <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />{error}
+                </div>
+              )}
 
               <div className="pt-4 border-t border-white/10">
                 <div className="flex justify-between pt-2">

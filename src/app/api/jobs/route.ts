@@ -57,7 +57,7 @@ export async function POST(request: Request) {
     const decoded = verifyAccessToken(token) as any;
     if (!decoded) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    if (!(await isEmailVerified(decoded.id, decoded.role))) return unverifiedResponse();
+    if (!(await isEmailVerified(decoded.id))) return unverifiedResponse();
 
     const { startupId, title, description, skills, type, location, salaryMin, salaryMax } = await request.json();
     if (!startupId || !title?.trim()) return NextResponse.json({ error: 'startupId and title are required.' }, { status: 400 });

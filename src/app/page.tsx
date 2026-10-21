@@ -33,10 +33,12 @@ export default function Home() {
           Built for startups &amp; investors
         </div>
 
-        <h1 className="text-5xl sm:text-6xl md:text-7xl font-extrabold tracking-tight mb-6 leading-tight">
-          <span className="gradient-text-hero">Connect With Startups.</span>
-          <br />
-          <span className="gradient-text-accent">Build the Future.</span>
+        <h1 className="text-5xl sm:text-6xl md:text-7xl font-extrabold tracking-tight mb-6 leading-tight flex flex-col items-center gap-4">
+          <div className="flex items-center gap-4">
+            <img src="/favicon.ico" alt="startupZconnect logo" className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl shadow-lg shadow-indigo-500/30" />
+            <span className="gradient-text-hero">startupZconnect</span>
+          </div>
+          <span className="gradient-text-accent">Connect. Collaborate. Build.</span>
         </h1>
 
         <p className="text-lg md:text-xl text-slate-400 max-w-2xl mb-10 leading-relaxed">

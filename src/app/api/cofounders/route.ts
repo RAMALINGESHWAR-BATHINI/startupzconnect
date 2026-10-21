@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const decoded = verifyAccessToken(token) as any;
     if (!decoded) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    if (!(await isEmailVerified(decoded.id, decoded.role))) return unverifiedResponse();
+    if (!(await isEmailVerified(decoded.id))) return unverifiedResponse();
 
     const { lookingFor, skillsOffered, skillsWanted, commitment, domain, pitch } = await request.json();
     if (!lookingFor?.trim() || !skillsOffered?.trim() || !skillsWanted?.trim() || !commitment || !pitch?.trim()) {

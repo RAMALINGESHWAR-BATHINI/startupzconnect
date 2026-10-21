@@ -1,7 +1,14 @@
 # StartupzConnect — Migrations
 
 ## 0003_admin_system.sql
+
 Incremental migration. Safe to apply on top of existing data.
+
+**Location:** `prisma/0003_admin_system.sql`
+
+> The project uses `prisma db push` rather than Prisma's migration engine, and `prisma/migrations/` is
+> git-ignored. The hand-written admin-system SQL is therefore kept at the path above so it stays version
+> controlled. Apply it manually with `wrangler d1 execute`, not with `prisma migrate deploy`.
 
 ### What it does
 1. Adds columns to `User`: `status`, `investorVerificationStatus`, `investorReviewedBy`, `investorReviewedAt`, `investorReviewNotes`, `organization`

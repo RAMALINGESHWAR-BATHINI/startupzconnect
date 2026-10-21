@@ -71,7 +71,11 @@ export async function POST(request: Request) {
     }
 
     // Create a server-side session row (multi-device support) and set cookies.
-    const { accessToken, refreshToken } = await issueAuthSession(user.id, undefined, ip ?? undefined);
+    const { accessToken, refreshToken } = await issueAuthSession(
+      { id: user.id, email: user.email, role: user.role },
+      undefined,
+      ip ?? undefined
+    );
 
     const response = NextResponse.json({
       user: { id: user.id, name: user.name, email: user.email, role: user.role },

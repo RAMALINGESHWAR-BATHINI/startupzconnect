@@ -12,7 +12,6 @@ export async function GET(request: Request) {
     if (auth instanceof NextResponse) return auth;
     const { actor } = auth;
 
-    const { userId } = Object.fromEntries(new URL(request.url).searchEntries ? [] : []);
     const url = new URL(request.url);
     const targetUserId = url.searchParams.get('userId');
 

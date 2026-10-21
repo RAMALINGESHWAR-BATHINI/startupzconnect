@@ -26,6 +26,8 @@ const ORIGINS = [
 
 const STEPS = ['Basic Info', 'Origin & Legal', 'Stage & Team', 'Showcase'];
 
+type ReviewRow = [string, string];
+
 export default function CreateStartupPage() {
   const { user } = useAuth();
   const router = useRouter();
@@ -41,6 +43,18 @@ export default function CreateStartupPage() {
   });
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
+
+  const reviewRows: Array<ReviewRow | null> = [
+    ['Name', form.name],
+    ['Domain', form.domain || 'Not selected'],
+    ['Origin', ORIGINS.find(o => o.value === form.originType)?.label || ''],
+    form.institutionName ? ['Institution', form.institutionName] : null,
+    form.registrationId ? ['Registration ID', form.registrationId] : null,
+    ['Stage', STAGES.find(s => s.value === form.stage)?.label || ''],
+    ['Team Size', form.employeeCount],
+    form.foundedDate ? ['Founded', form.foundedDate] : null,
+    form.websiteUrl ? ['Website', form.websiteUrl] : null,
+  ];
 
   const validate = () => {
     if (step === 0) {
@@ -241,20 +255,10 @@ export default function CreateStartupPage() {
             </div>
             <div className="space-y-3">
               <h3 className="text-sm font-semibold text-slate-300">Review your startup details</h3>
-              {[
-                ['Name', form.name],
-                ['Domain', form.domain || 'Not selected'],
-                ['Origin', ORIGINS.find(o => o.value === form.originType)?.label || ''],
-                form.institutionName ? ['Institution', form.institutionName] : null,
-                form.registrationId ? ['Registration ID', form.registrationId] : null,
-                ['Stage', STAGES.find(s => s.value === form.stage)?.label || ''],
-                ['Team Size', form.employeeCount],
-                form.foundedDate ? ['Founded', form.foundedDate] : null,
-                form.websiteUrl ? ['Website', form.websiteUrl] : null,
-              ].filter(Boolean).map(([k, v]) => (
-                <div key={k as string} className="flex justify-between text-sm py-2 border-b border-white/5">
+              {reviewRows.filter((row): row is ReviewRow => row !== null).map(([k, v]) => (
+                <div key={k} className="flex justify-between text-sm py-2 border-b border-white/5">
                   <span className="text-slate-400">{k}</span>
-                  <span className="text-white font-medium text-right max-w-xs truncate">{v as string}</span>
+                  <span className="text-white font-medium text-right max-w-xs truncate">{v}</span>
                 </div>
               ))}
             </div>

@@ -1,0 +1,18 @@
+# Normalise line endings: store LF in the repository, check out LF on every platform.
+# This keeps diffs clean and prevents whole-file churn when switching branches on Windows.
+* text=auto eol=lf
+
+# Binary assets — never touched.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.db binary
+*.sqlite binary
+
+# Lockfiles and generated files that must stay byte-exact.
+package-lock.json -diff

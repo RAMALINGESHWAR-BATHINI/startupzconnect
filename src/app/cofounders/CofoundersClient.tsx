@@ -72,26 +72,26 @@ export default function CofoundersClient() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <input required placeholder="Looking for (e.g. Technical Co-founder) *" value={form.lookingFor}
               onChange={e => setForm(f => ({ ...f, lookingFor: e.target.value }))}
-              className="px-4 py-2.5 rounded-lg bg-slate-900 border border-white/10 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 text-sm" />
+              className="px-4 py-2.5 rounded-lg bg-slate-900/80 border border-white/10 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-sm" />
             <select value={form.commitment} onChange={e => setForm(f => ({ ...f, commitment: e.target.value }))}
-              className="px-4 py-2.5 rounded-lg bg-slate-900 border border-white/10 text-white text-sm focus:outline-none">
+              className="px-4 py-2.5 rounded-lg bg-slate-900/80 border border-white/10 text-white text-sm focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all cursor-pointer hover:border-white/20">
               {COMMITMENTS.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
             <input required placeholder="Skills you offer (comma-separated) *" value={form.skillsOffered}
               onChange={e => setForm(f => ({ ...f, skillsOffered: e.target.value }))}
-              className="px-4 py-2.5 rounded-lg bg-slate-900 border border-white/10 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 text-sm" />
+              className="px-4 py-2.5 rounded-lg bg-slate-900/80 border border-white/10 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-sm" />
             <input required placeholder="Skills you need (comma-separated) *" value={form.skillsWanted}
               onChange={e => setForm(f => ({ ...f, skillsWanted: e.target.value }))}
-              className="px-4 py-2.5 rounded-lg bg-slate-900 border border-white/10 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 text-sm" />
+              className="px-4 py-2.5 rounded-lg bg-slate-900/80 border border-white/10 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-sm" />
             <select value={form.domain} onChange={e => setForm(f => ({ ...f, domain: e.target.value }))}
-              className="px-4 py-2.5 rounded-lg bg-slate-900 border border-white/10 text-white text-sm focus:outline-none sm:col-span-2">
+              className="px-4 py-2.5 rounded-lg bg-slate-900/80 border border-white/10 text-white text-sm focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all cursor-pointer hover:border-white/20 sm:col-span-2">
               <option value="">Domain (optional)</option>
               {DOMAINS.filter(Boolean).map(d => <option key={d} value={d}>{d}</option>)}
             </select>
           </div>
           <textarea required minLength={30} rows={4} placeholder="Describe your idea, stage, and what kind of partner you're looking for... *"
             value={form.pitch} onChange={e => setForm(f => ({ ...f, pitch: e.target.value }))}
-            className="w-full px-4 py-2.5 rounded-lg bg-slate-900 border border-white/10 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 text-sm resize-none" />
+            className="w-full px-4 py-2.5 rounded-lg bg-slate-900/80 border border-white/10 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-sm resize-none" />
           <button type="submit" disabled={submitting}
             className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white text-sm font-semibold">
             {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Post Listing'}
@@ -101,7 +101,7 @@ export default function CofoundersClient() {
 
       <div className="flex gap-2 mb-6">
         <select value={domainFilter} onChange={e => setDomainFilter(e.target.value)}
-          className="px-4 py-2 rounded-xl bg-slate-900 border border-white/10 text-white text-sm focus:outline-none">
+          className="px-4 py-2.5 rounded-xl bg-slate-900/80 border border-white/10 text-white text-sm focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all cursor-pointer hover:border-white/20">
           <option value="">All domains</option>
           {DOMAINS.filter(Boolean).map(d => <option key={d} value={d}>{d}</option>)}
         </select>

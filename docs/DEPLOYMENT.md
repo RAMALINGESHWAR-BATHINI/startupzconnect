@@ -2,6 +2,9 @@
 
 ## Prerequisites
 - Node.js 20+, npm
+- **A symlink-capable filesystem for the Worker bundle** — Linux, macOS, or WSL. The OpenNext bundler
+  creates directory symlinks while assembling the bundle, which native Windows blocks unless Developer Mode
+  is enabled. `npm run build` (the Next.js build) works on any platform.
 - Cloudflare account (for D1, R2, Turnstile, Workers)
 - Resend account (for email)
 - `.env.local` populated from `.env.example` (never commit real secrets)
@@ -26,11 +29,19 @@
 | ERROR_WEBHOOK_URL | Optional Slack webhook for error alerts |
 
 ## Deploy Steps
-1. Run `0003_admin_system.sql` migration on staging; verify
+1. Apply `prisma/0003_admin_system.sql` to staging; verify
 2. Apply migration to production (with approval)
 3. `npm run db:seed` to bootstrap admin account
-4. Deploy code (new code ignores legacy `role='ADMIN'`)
+4. `npm run build:worker` then `npm run deploy`
 5. Verify admin dashboard loads and role assignments work
+
+## Build Scripts
+| Script | Purpose |
+|--------|---------|
+| `npm run build` | `prisma generate` + `next build` — the Next.js production build. Platform-independent. |
+| `npm run build:worker` | `prisma generate` + `opennextjs-cloudflare build` — the Worker bundle. Needs symlink support. |
+| `npm run deploy` | `build:worker` + `opennextjs-cloudflare deploy`. |
+| `npm run preview` | `build:worker` + `opennextjs-cloudflare preview`. |
 
 ## Cloudflare Configuration
 - D1 database bound as `DB`

@@ -42,28 +42,28 @@ export default function JobsClient() {
         <p className="text-slate-400">{total > 0 ? `${total} open positions` : 'Browse open positions'} at verified startups.</p>
       </div>
 
-      <div className="flex flex-wrap gap-3 mb-8">
+      <div className="flex flex-wrap gap-3 mb-8 items-center">
         <form onSubmit={handleSearch} className="flex gap-2 flex-1 min-w-60">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
             <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search job title or skills..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 transition-colors text-sm" />
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900/80 border border-white/10 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-sm" />
           </div>
-          <button type="submit" className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm transition-colors">Search</button>
+          <button type="submit" className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm transition-all shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40">Search</button>
         </form>
         <select value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1); }}
-          className="px-4 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-white text-sm focus:outline-none">
+          className="px-4 py-2.5 rounded-xl bg-slate-900/80 border border-white/10 text-white text-sm focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all cursor-pointer hover:border-white/20">
           <option value="">All types</option>
           {JOB_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
         <select value={locFilter} onChange={e => { setLocFilter(e.target.value); setPage(1); }}
-          className="px-4 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-white text-sm focus:outline-none">
+          className="px-4 py-2.5 rounded-xl bg-slate-900/80 border border-white/10 text-white text-sm focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all cursor-pointer hover:border-white/20">
           <option value="">All locations</option>
           {LOCATIONS.map(l => <option key={l} value={l}>{l}</option>)}
         </select>
         {(query || typeFilter || locFilter) && (
           <button onClick={() => { setSearch(''); setQuery(''); setTypeFilter(''); setLocFilter(''); setPage(1); }}
-            className="px-4 py-2.5 rounded-xl border border-white/10 text-slate-400 hover:text-white text-sm transition-colors">Clear</button>
+            className="px-4 py-2.5 rounded-xl border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 hover:border-white/20 text-sm transition-all">Clear filters</button>
         )}
       </div>
 

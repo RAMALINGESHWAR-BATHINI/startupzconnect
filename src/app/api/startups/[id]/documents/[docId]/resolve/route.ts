@@ -32,7 +32,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       if (!(auth instanceof NextResponse)) isAdmin = true;
     }
 
-    const user = await prisma.user.findUnique({ where: { id: decoded.id }, select: { investorVerificationStatus: true } });
+    const user = await prisma.user.findUnique({ where: { id: decoded.id }, select: { investorVerificationStatus: true, email: true } });
     const isVerifiedInvestor = user?.investorVerificationStatus === 'VERIFIED';
     const investorInterest = isVerifiedInvestor
       ? await prisma.investmentInterest.findUnique({ where: { startupId_userId: { startupId: parseInt(id), userId: decoded.id } } })

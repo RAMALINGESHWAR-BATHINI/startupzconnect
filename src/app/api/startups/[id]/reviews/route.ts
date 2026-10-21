@@ -10,7 +10,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     const reviews = await prisma.startupReview.findMany({
       where: { startupId: parseInt(id) },
       orderBy: { createdAt: 'desc' },
-      include: { user: { select: { id: true, name: true, isAnonymous: true } } },
+      include: { user: { select: { id: true, name: true } } },
     });
 
     // Strip reviewer identity for anonymous reviews.
@@ -50,7 +50,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const decoded = verifyAccessToken(token) as any;
     if (!decoded) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    if (!(await isEmailVerified(decoded.id, decoded.role))) return unverifiedResponse();
+    if (!(await isEmailVerified(decoded.id))) return unverifiedResponse();
 
     const startupId = parseInt(id);
     const startup = await prisma.startup.findUnique({ where: { id: startupId } });
@@ -75,6 +75,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       data: { startupId, userId: decoded.id, visitType, cultureRating, transparencyRating, professionalismRating, productRating, overallRating, reviewText: reviewText.trim(), isAnonymous: !!isAnonymous, verifiedByCheckIn },
     });
 
+    // The access token carries only identity claims, so read the author's name
+    // from the database rather than from the token payload.
+    const author = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      select: { id: true, name: true },
+    });
+
     return NextResponse.json({
       id: review.id,
       startupId: review.startupId,
@@ -92,7 +99,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       flagReason: review.flagReason,
       createdAt: review.createdAt,
       updatedAt: review.updatedAt,
-      user: review.isAnonymous ? null : { id: decoded.id, name: decoded.name },
+      user: review.isAnonymous ? null : author,
     }, { status: 201 });
   } catch (err) {
     console.error('POST /reviews error:', err);

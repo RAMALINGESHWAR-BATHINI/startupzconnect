@@ -63,7 +63,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Only startup accounts can create a startup profile.' }, { status: 403 });
     }
 
-    if (!(await isEmailVerified(decoded.id, decoded.role))) return unverifiedResponse();
+    if (!(await isEmailVerified(decoded.id))) return unverifiedResponse();
 
     const body = await request.json();
     const { name, domain, description, originType, institutionName, registrationId,

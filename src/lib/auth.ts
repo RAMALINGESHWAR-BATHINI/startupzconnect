@@ -91,12 +91,18 @@ export const clearAuthCookies = async () => {
 };
 
 /** Issue a new session row + cookies after login/refresh. Returns the session record. */
-export async function issueAuthSession(userId: number, deviceInfo?: string, ip?: string) {
-  const accessToken = signAccessToken({ id: userId });
-  const refreshToken = signRefreshToken({ id: userId });
+export async function issueAuthSession(
+  user: { id: number; email: string; role: string },
+  deviceInfo?: string,
+  ip?: string
+) {
+  // The access token carries id/email/role so that route handlers can authorise
+  // from the token alone. Keep this in sync with the refresh route.
+  const accessToken = signAccessToken({ id: user.id, email: user.email, role: user.role });
+  const refreshToken = signRefreshToken({ id: user.id });
 
   const session = await createSession({
-    userId,
+    userId: user.id,
     token: refreshToken, // raw token; sessions.ts hashes it before storage
     deviceInfo,
     ip,
