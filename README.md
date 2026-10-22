@@ -341,6 +341,11 @@ type errors and the missing dependency that v5.1 carried — see [Fixed during c
 4. **The Workers bundle cannot be built on native Windows** without enabling Developer Mode — see
    [Deployment](#deployment).
 
+5. **The build needs network access to `fonts.googleapis.com`.** `src/app/layout.tsx` loads Inter through
+   `next/font/google`, which is fetched at build time. On a fully offline machine, or behind a firewall that
+   blocks Google Fonts, `npm run build` fails with a font-loading error. Bundle the font locally with
+   `next/font/local` if you need hermetic builds.
+
 ### Fixed during consolidation
 
 | Issue | Fix |

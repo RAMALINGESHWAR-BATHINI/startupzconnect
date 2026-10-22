@@ -70,6 +70,9 @@ The consolidation release. Based on v5.1 with the consent flow, UI fixes and rep
   `prisma` from the registry when the local binary is missing — and the registry's `prisma` package is a
   different, incompatible project (it resolves to `8.0.0-rc.24`, whose CLI has no `generate` command).
   The scripts now call the local `prisma` binary directly.
+- **Redacted the affected e-mail addresses from the published history.** The v6.0.0 commit originally named
+  the two affected test accounts in `docs/SECURITY.md`. The document no longer does, and the commit was
+  rebuilt so no reachable object contains them.
 
 ### Removed
 - `prisma/dev.db` — removed from every commit in the repository. It contained user rows, bcrypt password
