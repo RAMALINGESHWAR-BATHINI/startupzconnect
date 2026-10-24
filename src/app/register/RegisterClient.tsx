@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { User, Mail, Lock, AlertCircle, Loader2, Eye, EyeOff, ChevronRight, ChevronLeft, CheckCircle, FileText, Building2, Briefcase, Building, Users, Percent, Ticket, ExternalLink, CheckCircle2, Info } from 'lucide-react';
 import { ROLE_FIELDS, SIGNUP_ROLES, validateRegistrationProfile } from '@/lib/registration-rules';
 import { getLegalDocsRead, clearLegalDocsRead, type LegalDoc } from '@/lib/legal-consent';
+import PasswordStrength from '@/components/PasswordStrength';
+import { passwordStrength } from '@/lib/password-policy';
 
 const roleIcons: Record<string, React.ElementType> = {
   STUDENT: Building2,
@@ -29,6 +31,7 @@ export default function RegisterWizard() {
   const [profile, setProfile] = useState<Record<string, string>>({});
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [docsRead, setDocsRead] = useState<Record<LegalDoc, boolean>>({ terms: false, privacy: false });
+const [attemptId] = useState(() => (typeof crypto !== 'undefined' ? crypto.randomUUID() : Math.random().toString(36).slice(2)));
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -43,7 +46,7 @@ export default function RegisterWizard() {
   // carried through localStorage. Pick it up on focus and via the cross-tab
   // `storage` event.
   useEffect(() => {
-    const sync = () => setDocsRead(getLegalDocsRead());
+    const sync = () => setDocsRead(getLegalDocsRead(attemptId));
     sync();
     window.addEventListener('storage', sync);
     window.addEventListener('focus', sync);
@@ -53,7 +56,7 @@ export default function RegisterWizard() {
       window.removeEventListener('focus', sync);
       document.removeEventListener('visibilitychange', sync);
     };
-  }, []);
+  }, [attemptId]);
 
   const isValidStep = useCallback((): boolean => {
     if (step === 'account') {
@@ -125,7 +128,7 @@ export default function RegisterWizard() {
     setLoading(true);
     try {
       await register(form.name, form.email, form.password, form.role, acceptTerms, profile);
-      clearLegalDocsRead();
+      clearLegalDocsRead(attemptId);
     } catch (err: any) {
       setError(err?.response?.data?.error || 'Registration failed. Please try again.');
     } finally {
@@ -210,7 +213,7 @@ export default function RegisterWizard() {
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                   <input type={showPassword ? 'text' : 'password'} required minLength={8}
-                    value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value.replace(/\s/g, '') })}
                     placeholder="••••••••"
                     className="w-full pl-10 pr-12 py-2.5 rounded-lg bg-slate-900 border border-white/10 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 transition-colors text-sm" />
                   <button type="button" onClick={() => setShowPassword(!showPassword)}
@@ -219,6 +222,8 @@ export default function RegisterWizard() {
                   </button>
                 </div>
               </div>
+
+              <PasswordStrength password={form.password} />
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">I am a…</label>
@@ -243,7 +248,7 @@ export default function RegisterWizard() {
               </div>
 
               <div className="flex justify-between pt-2">
-                <button type="button" onClick={nextStep} disabled={loading}
+                <button type="button" onClick={nextStep} disabled={loading || passwordStrength(form.password).score < 2}
                   className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white font-semibold text-sm transition-colors">
                   Continue to Profile<ChevronRight className="w-4 h-4" />
                 </button>
@@ -306,7 +311,7 @@ export default function RegisterWizard() {
                     className="w-48 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg border border-white/10 bg-white/[0.02] text-white hover:bg-white/5 transition-colors text-sm">
                     <ChevronLeft className="w-4 h-4" /> Back
                   </button>
-                  <button type="submit" disabled={loading}
+                  <button type="submit" disabled={loading || passwordStrength(form.password).score < 2}
                     className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white font-semibold text-sm transition-colors">
                     Continue {stepIndex === steps.length - 2 ? 'to Terms' : ''}<ChevronRight className="w-4 h-4" />
                   </button>
@@ -343,7 +348,7 @@ export default function RegisterWizard() {
 
                 {(['terms', 'privacy'] as LegalDoc[]).map((doc) => (
                   <div key={doc} className="flex items-center justify-between gap-3">
-                    <Link href={DOC_META[doc].href} target="_blank" rel="noopener noreferrer"
+                    <Link href={`${DOC_META[doc].href}?attempt=${attemptId}`} target="_blank" rel="noopener noreferrer"
                       className="flex items-center gap-2 text-sm text-indigo-400 hover:text-indigo-300 transition-colors">
                       Read the full {DOC_META[doc].label} <ExternalLink className="w-3.5 h-3.5" />
                     </Link>
@@ -441,7 +446,7 @@ export default function RegisterWizard() {
                     className="w-48 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg border border-white/10 bg-white/[0.02] text-white hover:bg-white/5 transition-colors text-sm">
                     <ChevronLeft className="w-4 h-4" /> Back
                   </button>
-                  <button type="button" onClick={handleSubmit} disabled={loading}
+                  <button type="button" onClick={handleSubmit} disabled={loading || passwordStrength(form.password).score < 2}
                     className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white font-semibold text-sm transition-colors">
                     {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating account...</> : 'Create Account'}
                   </button>

@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import PasswordStrength from '@/components/PasswordStrength';
+import { passwordStrength } from '@/lib/password-policy';
 import { Lock, Loader2, AlertCircle, CheckCircle, ArrowLeft, LogOut, ShieldAlert,
   Mail, Monitor, Trash2, ShieldCheck } from 'lucide-react';
 
@@ -140,11 +142,12 @@ export default function SettingsPage() {
               <label className="block text-sm font-medium text-slate-300 mb-1.5">{label}</label>
               <input type="password" required minLength={key === 'current' ? 1 : 8}
                 value={passwords[key as keyof typeof passwords]}
-                onChange={e => setPasswords({ ...passwords, [key]: e.target.value })}
+                onChange={e => setPasswords({ ...passwords, [key]: e.target.value.replace(/\s/g, '') })}
                 className="w-full px-4 py-2.5 rounded-lg bg-slate-900 border border-white/10 text-white text-sm focus:outline-none focus:border-indigo-500 transition-colors" />
+              {key === 'next' && <PasswordStrength password={passwords.next} />}
             </div>
           ))}
-          <button type="submit" disabled={pwLoading}
+          <button type="submit" disabled={pwLoading || passwordStrength(passwords.next).score < 2 || passwords.next !== passwords.confirm}
             className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white font-semibold text-sm transition-colors mt-2">
             {pwLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Updating...</> : 'Update Password'}
           </button>

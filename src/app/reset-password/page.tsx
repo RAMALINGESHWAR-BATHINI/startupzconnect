@@ -3,6 +3,8 @@ import { Suspense, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
+import PasswordStrength from '@/components/PasswordStrength';
+import { passwordStrength } from '@/lib/password-policy';
 import { Lock, Loader2, ArrowLeft, CheckCircle, AlertCircle, Eye, EyeOff } from 'lucide-react';
 
 export default function ResetPasswordPage() {
@@ -75,12 +77,13 @@ function ResetPasswordForm() {
                 <label className="block text-sm font-medium text-slate-300 mb-1.5">New Password <span className="text-slate-500 font-normal">(min 8 characters)</span></label>
                 <div className="relative">
                   <input type={show ? 'text' : 'password'} required minLength={8} value={passwords.next}
-                    onChange={e => setPasswords(p => ({ ...p, next: e.target.value }))}
+                    onChange={e => setPasswords(p => ({ ...p, next: e.target.value.replace(/\s/g, '') }))}
                     className="w-full pl-4 pr-12 py-2.5 rounded-lg bg-slate-900 border border-white/10 text-white focus:outline-none focus:border-indigo-500 text-sm transition-colors" />
                   <button type="button" onClick={() => setShow(!show)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
                     {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
+                <PasswordStrength password={passwords.next} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1.5">Confirm New Password</label>
@@ -88,7 +91,7 @@ function ResetPasswordForm() {
                   onChange={e => setPasswords(p => ({ ...p, confirm: e.target.value }))}
                   className="w-full px-4 py-2.5 rounded-lg bg-slate-900 border border-white/10 text-white focus:outline-none focus:border-indigo-500 text-sm transition-colors" />
               </div>
-              <button type="submit" disabled={loading}
+              <button type="submit" disabled={loading || passwordStrength(passwords.next).score < 2 || passwords.next !== passwords.confirm}
                 className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white font-semibold text-sm transition-colors">
                 {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Resetting...</> : 'Reset Password'}
               </button>

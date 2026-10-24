@@ -4,6 +4,16 @@ import prisma from '@/lib/prisma';
 import { verifyAccessToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
 
+export async function GET() {
+  try {
+    const count = await prisma.investmentInterest.count();
+    return NextResponse.json({ total: count });
+  } catch (err) {
+    console.error('GET /investments error:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const cookieStore = await cookies();

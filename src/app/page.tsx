@@ -1,20 +1,21 @@
 'use client';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { ArrowRight, Search, Building2, Users, TrendingUp, Zap, Shield, Globe } from 'lucide-react';
+import { ArrowRight, Search, Building2, Users, TrendingUp, Zap, Shield, Globe, Rocket, Briefcase, Sparkles } from 'lucide-react';
 import api from '@/lib/api';
 
 export default function Home() {
-  const [stats, setStats] = useState<{ startups: number; jobs: number } | null>(null);
+  const [stats, setStats] = useState<{ startups: number; jobs: number; investments: number } | null>(null);
 
   useEffect(() => {
     // Fetch real counts from the API
-    Promise.all([
-      api.get('/startups', { params: { limit: 1 } }),
-      api.get('/jobs', { params: { limit: 1 } }),
-    ]).then(([s, j]) => {
-      setStats({ startups: s.data.total || 0, jobs: j.data.total || 0 });
-    }).catch(() => {});
+Promise.all([
+  api.get('/startups', { params: { limit: 1 } }),
+  api.get('/jobs', { params: { limit: 1 } }),
+  api.get('/investments'),
+]).then(([s, j, i]) => {
+  setStats({ startups: s.data.total || 0, jobs: j.data.total || 0, investments: i.data.total || 0 });
+}).catch(() => {});
   }, []);
 
   const fmt = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1)}K+` : n > 0 ? `${n}+` : '—';
@@ -55,12 +56,7 @@ export default function Home() {
           </Link>
         </div>
 
-        {/* Real stats */}
-        <div className="flex items-center gap-6 mt-12 text-sm text-slate-500">
-          <span>🚀 {stats ? fmt(stats.startups) : '…'} startups</span>
-          <span>•</span>
-          <span>💼 {stats ? fmt(stats.jobs) : '…'} open jobs</span>
-        </div>
+{/* Real stats cards below */}
       </section>
 
       {/* Stats Cards */}
@@ -68,7 +64,7 @@ export default function Home() {
         {[
           { icon: Building2, color: 'text-blue-400', bg: 'bg-blue-500/10', title: stats ? fmt(stats.startups) : '…', sub: 'Active startups listed across all domains' },
           { icon: Users, color: 'text-purple-400', bg: 'bg-purple-500/10', title: stats ? fmt(stats.jobs) : '…', sub: 'Open positions across cutting-edge startups' },
-          { icon: TrendingUp, color: 'text-emerald-400', bg: 'bg-emerald-500/10', title: 'Global', sub: 'Investment opportunities from founders worldwide' },
+          { icon: TrendingUp, color: 'text-emerald-400', bg: 'bg-emerald-500/10', title: stats ? fmt(stats.investments) : '…', sub: 'Active investment opportunities' },
         ].map(({ icon: Icon, color, bg, title, sub }) => (
           <div key={sub} className="group p-8 rounded-2xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/10 transition-all">
             <div className={`w-12 h-12 rounded-xl ${bg} flex items-center justify-center mb-5 ${color}`}>
@@ -86,12 +82,12 @@ export default function Home() {
         <p className="text-slate-400 text-center mb-14 max-w-xl mx-auto">From discovery to investment, we cover every step of your startup journey.</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {[
-            { icon: Search, title: 'Smart Search', desc: 'Search across startups and jobs by name, domain, or description.', color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
-            { icon: Users, title: 'Collaboration Hub', desc: 'Send collaboration requests directly to startup founders.', color: 'text-purple-400', bg: 'bg-purple-500/10' },
-            { icon: TrendingUp, title: 'Investment Signals', desc: 'Discover promising startups and express investment interest with deal details.', color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-            { icon: Building2, title: 'Job Board', desc: 'Browse and apply to startup jobs with real-time status tracking.', color: 'text-amber-400', bg: 'bg-amber-500/10' },
-            { icon: Shield, title: 'Secure Auth', desc: 'JWT auth with HTTP-only cookies, refresh token rotation, and role-based access.', color: 'text-rose-400', bg: 'bg-rose-500/10' },
-            { icon: Globe, title: 'Edge Deployed', desc: 'Hosted on Cloudflare Workers with D1 database for fast global responses.', color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
+            { icon: Search, title: 'Smart Discovery', desc: 'Find startups, companies, and jobs by name, domain, or description.', color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
+            { icon: Users, title: 'Collaboration Hub', desc: 'Connect with startup founders and explore collaboration opportunities.', color: 'text-purple-400', bg: 'bg-purple-500/10' },
+            { icon: TrendingUp, title: 'Investment Opportunities', desc: 'Discover promising startups and express interest in potential investments.', color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+            { icon: Building2, title: 'Startup Careers', desc: 'Explore startup jobs and manage your applications.', color: 'text-amber-400', bg: 'bg-amber-500/10' },
+            { icon: Sparkles, title: 'Startup Showcase', desc: 'Build your startup profile to highlight your vision, products, and progress.', color: 'text-rose-400', bg: 'bg-rose-500/10' },
+            { icon: Globe, title: 'Startup Network', desc: 'Discover founders, investors, and ecosystem connections to grow your network.', color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
           ].map(({ icon: Icon, title, desc, color, bg }) => (
             <div key={title} className="p-6 rounded-2xl border border-white/5 bg-white/[0.02] hover:border-white/10 hover:bg-white/[0.04] transition-all">
               <div className={`w-10 h-10 rounded-lg ${bg} flex items-center justify-center mb-4 ${color}`}>
@@ -106,3 +102,4 @@ export default function Home() {
     </main>
   );
 }
+

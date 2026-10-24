@@ -61,11 +61,12 @@ export default function StartupRegisterUnified() {
   
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [docsRead, setDocsRead] = useState<Record<LegalDoc, boolean>>({ terms: false, privacy: false });
+  const [attemptId] = useState(() => (typeof crypto !== 'undefined' ? crypto.randomUUID() : Math.random().toString(36).slice(2)));
   
   const bothDocsRead = docsRead.terms && docsRead.privacy;
   
   useEffect(() => {
-    const sync = () => setDocsRead(getLegalDocsRead());
+    const sync = () => setDocsRead(getLegalDocsRead(attemptId));
     sync();
     window.addEventListener('storage', sync);
     window.addEventListener('focus', sync);
@@ -75,7 +76,7 @@ export default function StartupRegisterUnified() {
       window.removeEventListener('focus', sync);
       document.removeEventListener('visibilitychange', sync);
     };
-  }, []);
+  }, [attemptId]);
   
   const setFormField = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
   const setStartupField = (k: string, v: string) => setStartup(f => ({ ...f, [k]: v }));

@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { Mail } from 'lucide-react';
+import { Mail, MessageCircle } from 'lucide-react';
 
 export default function Footer() {
   return (
@@ -23,7 +23,7 @@ export default function Footer() {
           <div>
             <h3 className="text-white font-semibold mb-4">Common Links</h3>
             <ul className="space-y-3 text-sm">
-              <li><Link href="/startups" className="text-slate-400 hover:text-white transition-colors">Startups</Link></li>
+              <li><Link href="/contact" className="text-slate-400 hover:text-white transition-colors">Contact Form</Link></li>
               <li><Link href="/jobs" className="text-slate-400 hover:text-white transition-colors">Jobs</Link></li>
               <li><Link href="/investments" className="text-slate-400 hover:text-white transition-colors">Invest</Link></li>
               <li><Link href="/cofounders" className="text-slate-400 hover:text-white transition-colors">Find a Co-founder</Link></li>
@@ -48,11 +48,15 @@ export default function Footer() {
 
           {/* Contact Us */}
           <div>
-            <h3 className="text-white font-semibold mb-4">Contact Us</h3>
+            <h3 className="text-white font-semibold mb-4">Support</h3>
             <ul className="space-y-3 text-sm">
               <li className="flex items-center gap-3 text-slate-400">
                 <Mail className="w-4 h-4 flex-shrink-0" />
-                <span>startupzconnect@gmail.com</span>
+                <a href="mailto:startupzconnect@gmail.com" className="text-slate-400 hover:text-white transition-colors">startupzconnect@gmail.com</a>
+              </li>
+              <li className="flex items-center gap-3 text-slate-400">
+                <MessageCircle className="w-4 h-4 flex-shrink-0" />
+                <Link href="/contact" className="text-slate-400 hover:text-white transition-colors">Contact us</Link>
               </li>
             </ul>
           </div>
