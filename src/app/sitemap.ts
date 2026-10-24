@@ -20,8 +20,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // whole sitemap — static routes still get returned either way.
   try {
     const [startups, jobs] = await Promise.all([
-      prisma.startup.findMany({ select: { id: true, updatedAt: true }, take: 1000 }),
-      prisma.jobOpening.findMany({ where: { isOpen: true }, select: { id: true, createdAt: true }, take: 1000 }),
+      prisma.startup.findMany({ select: { id: true, updatedAt: true } }),
+      prisma.jobOpening.findMany({ where: { isOpen: true }, select: { id: true, createdAt: true } }),
     ]);
 
     const startupEntries: MetadataRoute.Sitemap = startups.map(s => ({
@@ -44,3 +44,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     return staticEntries;
   }
 }
+
+

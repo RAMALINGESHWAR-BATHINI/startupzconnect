@@ -38,10 +38,10 @@ export default function Footer() {
           <div>
             <h3 className="text-white font-semibold mb-4">Community</h3>
             <ul className="space-y-3 text-sm">
-              <li><Link href="/register" className="text-slate-400 hover:text-white transition-colors">Join Us</Link></li>
+              <li><Link href="/register" className="text-slate-400 hover:text-white transition-colors">Join Us / Register</Link></li>
               <li><Link href="/login" className="text-slate-400 hover:text-white transition-colors">Login</Link></li>
               <li><Link href="/dashboard" className="text-slate-400 hover:text-white transition-colors">Dashboard</Link></li>
-              <li><Link href="/dashboard/startups/create" className="text-slate-400 hover:text-white transition-colors">Create Startup</Link></li>
+              
               <li><Link href="/dashboard/profile" className="text-slate-400 hover:text-white transition-colors">Profile</Link></li>
             </ul>
           </div>
@@ -71,3 +71,5 @@ export default function Footer() {
     </footer>
   );
 }
+
+
