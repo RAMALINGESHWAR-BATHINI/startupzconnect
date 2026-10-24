@@ -1,21 +1,17 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { authorizeAdmin } from '@/lib/admin-auth';
 import { ADMIN_ROLES, OPERATIONAL_ROLES, ROLE_DESCRIPTIONS, ROLE_PERMISSIONS, SENSITIVE_ROLES, isAdminRole, type Permission } from '@/lib/permissions';
 import { auditLog } from '@/lib/admin-auth';
 import { isPermission } from '@/lib/permissions';
+import prisma from '@/lib/prisma';
 
 export async function GET(request: Request) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('accessToken')?.value;
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    // Inline authorize for list (read permission).
-    const { verifyAccessToken } = await import('@/lib/auth');
-    const decoded = verifyAccessToken(token) as any;
-    if (!decoded) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const req = request as any;
+    const auth = await authorizeAdmin(req, { permission: 'admin.roles.read' as Permission });
+    if (auth instanceof NextResponse) return auth;
 
-    const assignments = await (await import('@/lib/prisma')).default.adminRoleAssignment.findMany({
+    const assignments = await prisma.adminRoleAssignment.findMany({
       select: { role: true },
       distinct: ['role'],
     });
@@ -45,15 +41,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Only GLOBAL_ADMIN can create sensitive roles.' }, { status: 403 });
     }
 
-    // Validate permissions.
     const permList = Array.isArray(permissions) ? permissions : [];
     for (const p of permList) {
       if (!isPermission(p)) return NextResponse.json({ error: `Invalid permission: ${p}` }, { status: 400 });
     }
 
-    // In this schema, roles are defined in the registry, not as DB rows.
-    // Creating a "custom role" means recording a named assignment template.
-    // For now, we record it as an AuditLog entry; actual role definitions live in permissions.ts.
     await auditLog({
       actorId: actor.userId,
       actorLabel: actor.email,

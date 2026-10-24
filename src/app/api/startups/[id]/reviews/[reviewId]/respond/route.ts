@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
-import { verifyAccessToken } from '@/lib/auth';
+import { verifyAccessToken } from '@/lib/auth'
+import { hasLiveAdminRole } from '@/lib/admin-auth';
 import { notifyUser } from '@/lib/notify';
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string; reviewId: string }> }) {
@@ -15,7 +16,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     const startup = await prisma.startup.findUnique({ where: { id: parseInt(id) } });
     if (!startup) return NextResponse.json({ error: 'Startup not found.' }, { status: 404 });
-    if (startup.founderId !== decoded.id && decoded.role !== 'ADMIN') {
+    if (startup.founderId !== decoded.id && !(await hasLiveAdminRole(decoded.id))) {
       return NextResponse.json({ error: 'Only the startup owner can respond to reviews.' }, { status: 403 });
     }
 
@@ -43,3 +44,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+
+
+

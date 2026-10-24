@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { isEmailVerified, unverifiedResponse } from '@/lib/guards';
 import prisma from '@/lib/prisma';
-import { verifyAccessToken } from '@/lib/auth';
+import { verifyAccessToken } from '@/lib/auth'
+import { hasLiveAdminRole, hasOrgMembership } from '@/lib/admin-auth';
 import { cookies } from 'next/headers';
 import { displayBadgeTier } from '@/lib/badges';
 
@@ -65,7 +66,10 @@ export async function POST(request: Request) {
 
     const startup = await prisma.startup.findUnique({ where: { id: startupId } });
     if (!startup) return NextResponse.json({ error: 'Startup not found.' }, { status: 404 });
-    if (startup.founderId !== decoded.id && decoded.role !== 'ADMIN') {
+    const isFounder = startup.founderId === decoded.id;
+    const isLiveAdmin = await hasLiveAdminRole(decoded.id);
+    const isOrgAdmin = await hasOrgMembership(decoded.id, startup.organizationId, 'ADMIN');
+    if (!isFounder && !isLiveAdmin && !isOrgAdmin) {
       return NextResponse.json({ error: 'You can only post jobs for your own startup.' }, { status: 403 });
     }
 
@@ -91,3 +95,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+
+

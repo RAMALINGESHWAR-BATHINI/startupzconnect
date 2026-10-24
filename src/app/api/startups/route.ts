@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { notifyAdmin } from '@/lib/alerts';
 import { isEmailVerified, unverifiedResponse } from '@/lib/guards';
 import prisma from '@/lib/prisma';
-import { verifyAccessToken } from '@/lib/auth';
+import { verifyAccessToken } from '@/lib/auth'
+import { hasLiveAdminRole } from '@/lib/admin-auth';
 import { cookies } from 'next/headers';
 import { displayBadgeTier } from '@/lib/badges';
 
@@ -18,6 +19,7 @@ export async function GET(request: Request) {
     const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') || '12')));
     const domain = searchParams.get('domain');
     const stage = searchParams.get('stage');
+    const verified = searchParams.get('verified');
     const skip = (page - 1) * limit;
 
     const where: any = {};
@@ -30,6 +32,7 @@ export async function GET(request: Request) {
     }
     if (domain) where.domain = domain;
     if (stage) where.stage = stage;
+    if (verified === 'true') where.badgeTier = { not: 'NONE' };
 
     const [startups, total] = await Promise.all([
       prisma.startup.findMany({
@@ -59,7 +62,7 @@ export async function POST(request: Request) {
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const decoded = verifyAccessToken(token) as any;
-    if (!decoded || (decoded.role !== 'STARTUP' && decoded.role !== 'ADMIN')) {
+    if (!decoded || (decoded.role !== 'STARTUP' && !(await hasLiveAdminRole(decoded.id)))) {
       return NextResponse.json({ error: 'Only startup accounts can create a startup profile.' }, { status: 403 });
     }
 
@@ -79,22 +82,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Institution/accelerator name is required for this origin type.' }, { status: 400 });
     }
 
-    const startup = await prisma.startup.create({
-      data: {
-        name: name.trim(), domain: domain || null, description: description?.trim() || null,
-        founderId: decoded.id,
-        originType: originType || 'INDEPENDENT',
-        institutionName: institutionName?.trim() || null,
-        registrationId: registrationId?.trim() || null,
-        registeredAddress: registeredAddress?.trim() || null,
-        operationalAddress: operationalAddress?.trim() || null,
-        foundedDate: foundedDate || null,
-        stage: stage || 'IDEA',
-        employeeCount: employeeCount ? parseInt(employeeCount) : 1,
-        websiteUrl: websiteUrl?.trim() || null,
-        badgeTier: registrationId?.trim() ? 'REGISTERED' : 'NONE',
-        documentsVerified: false,
-      },
+    const startup = await prisma.$transaction(async (tx) => {
+      const org = await tx.organization.create({ data: { name: name.trim() } });
+      return tx.startup.create({
+        data: {
+          name: name.trim(), domain: domain || null, description: description?.trim() || null,
+          founderId: decoded.id,
+          originType: originType || 'INDEPENDENT',
+          institutionName: institutionName?.trim() || null,
+          registrationId: registrationId?.trim() || null,
+          registeredAddress: registeredAddress?.trim() || null,
+          operationalAddress: operationalAddress?.trim() || null,
+          foundedDate: foundedDate || null,
+          stage: stage || 'IDEA',
+          employeeCount: employeeCount ? parseInt(employeeCount) : 1,
+          websiteUrl: websiteUrl?.trim() || null,
+          badgeTier: registrationId?.trim() ? 'REGISTERED' : 'NONE',
+          documentsVerified: false,
+          organizationId: org.id,
+        },
+      });
     });
 
     return NextResponse.json(startup, { status: 201 });
@@ -104,3 +111,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+
+
+

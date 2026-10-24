@@ -1,16 +1,14 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+import { authorizeAdmin } from '@/lib/admin-auth';
+import { type Permission } from '@/lib/permissions';
 import prisma from '@/lib/prisma';
-import { verifyAccessToken } from '@/lib/auth';
 import { notifyUser } from '@/lib/notify';
 
 export async function POST(request: Request) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('accessToken')?.value;
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const decoded = verifyAccessToken(token) as any;
-    if (!decoded || decoded.role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const req = request as any;
+    const auth = await authorizeAdmin(req, { permission: 'users.notify' as Permission });
+    if (auth instanceof NextResponse) return auth;
 
     const { email, title, message } = await request.json();
     if (!email || !title?.trim() || !message?.trim()) {

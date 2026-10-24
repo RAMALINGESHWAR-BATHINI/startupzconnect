@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
-import { verifyAccessToken } from '@/lib/auth';
+import { verifyAccessToken } from '@/lib/auth'
+import { hasLiveAdminRole, hasOrgMembership } from '@/lib/admin-auth';
 import { isEmailVerified, unverifiedResponse } from '@/lib/guards';
 
 const ALLOWED_TYPES = ['DEMO_DAY', 'PITCH_COMPETITION', 'MEETUP', 'WORKSHOP', 'OTHER'];
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
     const decoded = verifyAccessToken(token) as any;
     if (!decoded) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     if (!(await isEmailVerified(decoded.id))) return unverifiedResponse();
-    if (decoded.role !== 'STARTUP' && decoded.role !== 'ADMIN') {
+    if (decoded.role !== 'STARTUP' && !(await hasLiveAdminRole(decoded.id))) {
       return NextResponse.json({ error: 'Only startup accounts can post events.' }, { status: 403 });
     }
 
@@ -44,7 +45,10 @@ export async function POST(request: Request) {
 
     if (startupId) {
       const startup = await prisma.startup.findUnique({ where: { id: parseInt(startupId) } });
-      if (!startup || (startup.founderId !== decoded.id && decoded.role !== 'ADMIN')) {
+      const isFounder = startup?.founderId === decoded.id;
+      const isLiveAdmin = await hasLiveAdminRole(decoded.id);
+      const isOrgAdmin = startup ? await hasOrgMembership(decoded.id, startup.organizationId, 'ADMIN') : false;
+      if (!startup || (!isFounder && !isLiveAdmin && !isOrgAdmin)) {
         return NextResponse.json({ error: 'You can only post events for your own startup.' }, { status: 403 });
       }
     }
@@ -64,3 +68,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+
+

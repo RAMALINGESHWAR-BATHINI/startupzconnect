@@ -5,12 +5,13 @@
  */
 import { isAdminRole, type AdminRole, type Permission } from './permissions';
 
-export type ApprovalType = 'ROLE_ASSIGNMENT' | 'DATA_EXPORT';
+export type ApprovalType = 'ROLE_ASSIGNMENT' | 'DATA_EXPORT' | 'OWNERSHIP_TRANSFER';
 export type ApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'EXECUTED' | 'EXECUTION_FAILED' | 'EXPIRED';
 
 export const APPROVAL_TYPES: Record<ApprovalType, { requestPermission: Permission; reviewPermission: Permission; ttlHours: number }> = {
   ROLE_ASSIGNMENT: { requestPermission: 'admin.roles.assign', reviewPermission: 'admin.roles.assign', ttlHours: 72 },
   DATA_EXPORT: { requestPermission: 'data.exports.request', reviewPermission: 'data.exports.approve', ttlHours: 24 },
+  OWNERSHIP_TRANSFER: { requestPermission: 'admin.roles.assign', reviewPermission: 'admin.roles.assign', ttlHours: 72 },
 };
 export const EXPORT_EXECUTION_WINDOW_HOURS = 24;
 export const EXPORT_DATASETS = ['startups', 'users_basic'] as const;

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { authorizeAdmin } from '@/lib/admin-auth';
+import { authorizeAdmin, hasOrgMembership } from '@/lib/admin-auth';
 import { type Permission } from '@/lib/permissions';
 import prisma from '@/lib/prisma';
 import { verifyAccessToken } from '@/lib/auth';
@@ -27,11 +27,19 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     let isAdmin = false;
     if (!isFounder) {
       const auth = await authorizeAdmin(_req as any, { permission: 'documents.verify' as Permission });
-      if (auth instanceof NextResponse) return auth;
-      isAdmin = true;
+      if (auth instanceof NextResponse) {
+        // fall back to org membership
+        const isOrgAdmin = await hasOrgMembership(decoded.id, startup.organizationId, 'ADMIN');
+        if (!isOrgAdmin) return auth;
+      } else {
+        isAdmin = true;
+      }
     }
 
-    if (!isFounder && !isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (!isFounder && !isAdmin) {
+      const isOrgAdmin = await hasOrgMembership(decoded.id, startup.organizationId, 'ADMIN');
+      if (!isOrgAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const docs = await prisma.startupDocument.findMany({ where: { startupId: parseInt(id) }, orderBy: { createdAt: 'desc' } });
     return NextResponse.json(docs);
@@ -52,7 +60,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     if (startup.founderId !== decoded.id) {
       const auth = await authorizeAdmin(request as any, { permission: 'documents.verify' as Permission });
-      if (auth instanceof NextResponse) return auth;
+      if (auth instanceof NextResponse) {
+        const isOrgAdmin = await hasOrgMembership(decoded.id, startup.organizationId, 'ADMIN');
+        if (!isOrgAdmin) return auth;
+      }
     }
 
     const { docType, fileUrl } = await request.json();

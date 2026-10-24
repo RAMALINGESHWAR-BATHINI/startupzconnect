@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { verifyAccessToken } from '@/lib/auth';
+import { verifyAccessToken } from '@/lib/auth'
+import { hasLiveAdminRole, hasOrgMembership } from '@/lib/admin-auth';
 import { cookies } from 'next/headers';
 import { computeHealthScore, displayBadgeTier } from '@/lib/badges';
 
@@ -74,7 +75,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
     const startup = await prisma.startup.findUnique({ where: { id: startupId } });
     if (!startup) return NextResponse.json({ error: 'Startup not found.' }, { status: 404 });
-    if (startup.founderId !== decoded.id && decoded.role !== 'ADMIN') {
+    if (startup.founderId !== decoded.id && !(await hasLiveAdminRole(decoded.id))) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
     await prisma.startup.delete({ where: { id: startupId } });
@@ -97,7 +98,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const startup = await prisma.startup.findUnique({ where: { id: startupId } });
     if (!startup) return NextResponse.json({ error: 'Startup not found.' }, { status: 404 });
-    if (startup.founderId !== decoded.id && decoded.role !== 'ADMIN') {
+    const isFounder = startup.founderId === decoded.id;
+    const isLiveAdmin = await hasLiveAdminRole(decoded.id);
+    const isOrgOwner = await hasOrgMembership(decoded.id, startup.organizationId, 'ADMIN');
+    if (!isFounder && !isLiveAdmin && !isOrgOwner) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -130,3 +134,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+
+
+

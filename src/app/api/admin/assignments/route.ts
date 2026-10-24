@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { authorizeAdmin } from '@/lib/admin-auth';
-import { auditLog } from '@/lib/admin-auth';
+import { authorizeAdmin, auditLog, verifyCurrentPassword } from '@/lib/admin-auth';
 import { ADMIN_ROLES, SENSITIVE_ROLES, isAdminRole, canActOnTarget, type Permission } from '@/lib/permissions';
 import prisma from '@/lib/prisma';
 
@@ -30,9 +29,19 @@ export async function POST(request: Request) {
     if (auth instanceof NextResponse) return auth;
     const { actor } = auth;
 
-    const { userId, role, grantedById } = await request.json();
+    const { userId, role, currentPassword } = await request.json();
     if (!userId || !role || !isAdminRole(role)) {
       return NextResponse.json({ error: 'Valid userId and role are required.' }, { status: 400 });
+    }
+
+    // Sensitive actions require current-password reauthentication (server-side).
+    if (!currentPassword || !(await verifyCurrentPassword(actor.userId, currentPassword))) {
+      await auditLog({
+        actorId: actor.userId, actorLabel: actor.email, category: 'AUTHZ_FAILURE', action: 'admin.sensitive_password_failed',
+        severity: 'HIGH', outcome: 'DENIED', targetType: 'user', targetId: String(userId), ip: req.headers.get('x-forwarded-for') ?? req.headers.get('cf-connecting-ip') ?? undefined,
+        metadata: { role },
+      });
+      return NextResponse.json({ error: 'Current password verification is required.' }, { status: 403 });
     }
 
     // Prevent disabling the last GLOBAL_ADMIN.
@@ -51,6 +60,37 @@ export async function POST(request: Request) {
     const targetRoles = targetAssignments.map((a: any) => a.role);
     if (!canActOnTarget(actor.roles, targetRoles)) {
       return NextResponse.json({ error: 'Cannot modify a GLOBAL_ADMIN assignment.' }, { status: 403 });
+    }
+
+    if (SENSITIVE_ROLES.includes(role as any)) {
+    const approval = await prisma.$transaction(async (tx) => {
+      const a = await tx.approvalRequest.create({
+        data: {
+          type: 'ROLE_ASSIGNMENT',
+          status: 'PENDING',
+          requestedById: actor.userId,
+          reason: `Assignment of ${role} to user ${userId}`,
+          payload: JSON.stringify({ targetUserId: userId, role }),
+          expiresAt: new Date(Date.now() + 72 * 3600 * 1000),
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          category: 'APPROVAL',
+          action: 'role_assignment.request',
+          severity: 'INFO',
+          outcome: 'SUCCESS',
+          actorId: actor.userId,
+          actorLabel: actor.email,
+          targetType: 'user',
+          targetId: String(userId),
+          ip: req.headers.get('x-forwarded-for') ?? req.headers.get('cf-connecting-ip') ?? undefined,
+          metadata: JSON.stringify({ role, approvalId: a.id, targetUserId: userId }),
+        },
+      });
+      return a;
+    });
+    return NextResponse.json({ message: `Sensitive role ${role} submitted for approval.`, approvalId: approval.id });
     }
 
     const assignment = await prisma.adminRoleAssignment.create({
@@ -106,9 +146,29 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Cannot modify a GLOBAL_ADMIN assignment.' }, { status: 403 });
     }
 
+    if (SENSITIVE_ROLES.includes(role as any)) {
+      const approval = await prisma.approvalRequest.create({
+        data: {
+          type: 'ROLE_ASSIGNMENT',
+          status: 'PENDING',
+          requestedById: actor.userId,
+          reason: `Revocation of ${role} from user ${userId}`,
+          payload: JSON.stringify({ targetUserId: userId, role, action: 'revoke' }),
+          expiresAt: new Date(Date.now() + 72 * 3600 * 1000),
+        },
+      });
+      await auditLog({
+        actorId: actor.userId, actorLabel: actor.email, category: 'APPROVAL', action: 'role_revocation.request',
+        severity: 'INFO', outcome: 'SUCCESS', targetType: 'user', targetId: String(userId),
+        ip: req.headers.get('x-forwarded-for') ?? req.headers.get('cf-connecting-ip') ?? undefined,
+        metadata: { role, approvalId: approval.id, targetUserId: userId },
+      });
+      return NextResponse.json({ message: `Sensitive role ${role} revocation submitted for approval.`, approvalId: approval.id });
+    }
+
     await prisma.adminRoleAssignment.delete({ where: { userId_role: { userId, role } } });
 
-    await auditLog({
+    const auditOk = await auditLog({
       actorId: actor.userId,
       actorLabel: actor.email,
       category: 'ADMIN_ACTION',
@@ -120,7 +180,10 @@ export async function DELETE(request: Request) {
       ip: req.headers.get('x-forwarded-for') ?? req.headers.get('cf-connecting-ip') ?? undefined,
       metadata: { role, targetUserId: userId },
     });
-
+    if (!auditOk) {
+      // best-effort re-add? cannot easily; report failure
+      return NextResponse.json({ error: 'Audit record could not be persisted.' }, { status: 500 });
+    }
     return NextResponse.json({ message: `Role ${role} revoked.` });
   } catch (err) {
     console.error('DELETE /admin/assignments error:', err);

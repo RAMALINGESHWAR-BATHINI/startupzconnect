@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { authorizeAdmin } from '@/lib/admin-auth';
+import { type Permission } from '@/lib/permissions';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
 import { verifyAccessToken } from '@/lib/auth';
@@ -15,11 +17,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('accessToken')?.value;
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const decoded = verifyAccessToken(token) as any;
-    if (!decoded || decoded.role !== 'ADMIN') return NextResponse.json({ error: 'Only admins can add grants.' }, { status: 403 });
+    const req = request as any;
+    const auth = await authorizeAdmin(req, { permission: 'grants.manage' as Permission });
+    if (auth instanceof NextResponse) return auth;
 
     const { name, provider, description, eligibility, amountRange, applyUrl, deadline } = await request.json();
     if (!name?.trim() || !provider?.trim() || !description?.trim() || !eligibility?.trim()) {

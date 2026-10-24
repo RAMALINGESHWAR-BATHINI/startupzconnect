@@ -1,18 +1,16 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+import { authorizeAdmin } from '@/lib/admin-auth';
+import { type Permission } from '@/lib/permissions';
 import prisma from '@/lib/prisma';
-import { verifyAccessToken } from '@/lib/auth';
 import { notifyUser } from '@/lib/notify';
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = await params;
-    const cookieStore = await cookies();
-    const token = cookieStore.get('accessToken')?.value;
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const decoded = verifyAccessToken(token) as any;
-    if (!decoded || decoded.role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const req = request as any;
+    const auth = await authorizeAdmin(req, { permission: 'reports.moderate' as Permission });
+    if (auth instanceof NextResponse) return auth;
 
+    const { id } = await params;
     const { action } = await request.json(); // 'remove_content' | 'dismiss'
     const report = await prisma.report.findUnique({ where: { id: parseInt(id) } });
     if (!report) return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
@@ -28,7 +26,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       }
       await prisma.report.update({ where: { id: report.id }, data: { status: 'ACTIONED' } });
     } else {
-      // Dismissing a report un-flags the underlying review if it was a review report.
       if (report.contentType === 'REVIEW') {
         await prisma.startupReview.update({
           where: { id: report.contentId },

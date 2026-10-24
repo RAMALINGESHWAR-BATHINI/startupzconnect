@@ -127,9 +127,18 @@ function walk(dir, cb) {
   }
 }
 
-console.log('=== StartupzConnect Security Check ===\n');
-
-walk(SRC, scanFile);
+// 7. Admin routes that do not use the central authorizeAdmin() helper.
+const adminRouteFiles = [];
+walk(path.join(SRC, 'app', 'api', 'admin'), (f) => {
+  if (path.basename(f) === 'route.ts') adminRouteFiles.push(f);
+});
+for (const f of adminRouteFiles) {
+  const rel = path.relative(ROOT, f);
+  const content = fs.readFileSync(f, 'utf8');
+  if (!content.includes('authorizeAdmin') && !content.includes('admin-auth')) {
+    advise(rel, 1, 'Admin route handler does not reference authorizeAdmin() — verify server-side authorization.');
+  }
+}
 scanEnvIgnore();
 
 // Check that no environment file or database file is actually tracked in git.

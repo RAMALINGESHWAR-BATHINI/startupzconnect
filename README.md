@@ -7,7 +7,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?logo=typescript)](https://www.typescriptlang.org)
 [![Prisma](https://img.shields.io/badge/Prisma-6-2d3748?logo=prisma)](https://www.prisma.io)
 [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-Cloudflare%20orange?logo=cloudflare)](https://workers.cloudflare.com)
-[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![License](https://img.shields.io/badge/license-Proprietary-red)](LICENSE)
 
 ---
 
@@ -373,7 +373,7 @@ type errors and the missing dependency that v5.1 carried — see [Fixed during c
 
 ## License
 
-Released under the MIT License.
+Copyright (c) 2026 Ramalingeshwar Bathini. All Rights Reserved.
 
-The StartupzConnect platform is the work of **Ramalingeshwar Bathini**
-(<RAMALINGESHWAR-BATHINI@users.noreply.github.com>).
+This project is proprietary. No part may be used, copied, modified, or distributed
+without prior written permission. See [`LICENSE`](LICENSE).

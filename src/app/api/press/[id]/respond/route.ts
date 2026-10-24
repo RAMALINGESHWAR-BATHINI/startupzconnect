@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
-import { verifyAccessToken } from '@/lib/auth';
+import { verifyAccessToken } from '@/lib/auth'
+import { hasLiveAdminRole } from '@/lib/admin-auth';
 import { notifyUser } from '@/lib/notify';
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -17,7 +18,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!startupId || !message?.trim()) return NextResponse.json({ error: 'startupId and message are required.' }, { status: 400 });
 
     const startup = await prisma.startup.findUnique({ where: { id: parseInt(startupId) } });
-    if (!startup || (startup.founderId !== decoded.id && decoded.role !== 'ADMIN')) {
+    if (!startup || (startup.founderId !== decoded.id && !(await hasLiveAdminRole(decoded.id)))) {
       return NextResponse.json({ error: 'You can only respond on behalf of your own startup.' }, { status: 403 });
     }
 
@@ -40,3 +41,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+
+
+

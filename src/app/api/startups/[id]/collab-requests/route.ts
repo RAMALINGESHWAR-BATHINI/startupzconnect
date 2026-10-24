@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
-import { verifyAccessToken } from '@/lib/auth';
+import { verifyAccessToken } from '@/lib/auth'
+import { hasLiveAdminRole, hasOrgMembership } from '@/lib/admin-auth';
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -14,7 +15,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
     const startup = await prisma.startup.findUnique({ where: { id: parseInt(id) } });
     if (!startup) return NextResponse.json({ error: 'Startup not found.' }, { status: 404 });
-    if (startup.founderId !== decoded.id && decoded.role !== 'ADMIN') {
+    const isFounder = startup.founderId === decoded.id;
+    const isLiveAdmin = await hasLiveAdminRole(decoded.id);
+    const isOrgAdmin = await hasOrgMembership(decoded.id, startup.organizationId, 'ADMIN');
+    if (!isFounder && !isLiveAdmin && !isOrgAdmin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -32,3 +36,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+
+
+

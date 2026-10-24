@@ -8,12 +8,15 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { BadgeTier, StageBadge } from '@/components/ui/Badge';
 
 const DOMAINS = ['','AI','FinTech','HealthTech','EdTech','SaaS','E-commerce','Logistics','CleanTech','GameTech','Other'];
+const STAGES = ['','IDEA','MVP','PRE_SEED','SEED','SERIES_A','SERIES_B','BOOTSTRAPPED'];
 
 export default function StartupsClient() {
   const [startups, setStartups] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
   const [domain, setDomain] = useState('');
+  const [stage, setStage] = useState('');
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -23,13 +26,13 @@ export default function StartupsClient() {
   const fetchStartups = useCallback(async () => {
     setLoading(true); setError('');
     try {
-      const res = await api.get('/startups', { params: { search: query, domain, page, limit: 12 } });
+      const res = await api.get('/startups', { params: { search: query, domain, stage, verified: verifiedOnly ? 'true' : '', page, limit: 12 } });
       setStartups(res.data.startups);
       setTotalPages(res.data.totalPages);
       setTotal(res.data.total);
     } catch { setError('Failed to load startups. Please try again.'); }
     finally { setLoading(false); }
-  }, [query, domain, page]);
+  }, [query, domain, stage, verifiedOnly, page]);
 
   useEffect(() => { fetchStartups(); }, [fetchStartups]);
 
@@ -57,8 +60,17 @@ export default function StartupsClient() {
           <option value="">All domains</option>
           {DOMAINS.filter(Boolean).map(d => <option key={d} value={d}>{d}</option>)}
         </select>
-        {(query || domain) && (
-          <button type="button" onClick={() => { setSearch(''); setQuery(''); setDomain(''); setPage(1); }}
+        <select value={stage} onChange={e => { setStage(e.target.value); setPage(1); }}
+          className="px-4 py-2.5 rounded-xl bg-slate-900/80 border border-white/10 text-white text-sm focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all cursor-pointer hover:border-white/20">
+          <option value="">All stages</option>
+          {STAGES.filter(Boolean).map(s => <option key={s} value={s}>{s.replace(/_/g,' ')}</option>)}
+        </select>
+        <label className="flex items-center gap-2 text-sm text-slate-400 px-3 py-2.5 rounded-xl border border-white/10 bg-slate-900/80 cursor-pointer hover:border-white/20">
+          <input type="checkbox" checked={verifiedOnly} onChange={e => { setVerifiedOnly(e.target.checked); setPage(1); }} className="accent-indigo-500" />
+          Verified only
+        </label>
+        {(query || domain || stage || verifiedOnly) && (
+          <button type="button" onClick={() => { setSearch(''); setQuery(''); setDomain(''); setStage(''); setVerifiedOnly(false); setPage(1); }}
             className="px-4 py-2.5 rounded-xl border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 hover:border-white/20 text-sm transition-all">Clear filters</button>
         )}
       </div>

@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { isEmailVerified, unverifiedResponse } from '@/lib/guards';
 import prisma from '@/lib/prisma';
-import { verifyAccessToken } from '@/lib/auth';
+import { verifyAccessToken } from '@/lib/auth'
+import { hasLiveAdminRole } from '@/lib/admin-auth';
 import { cookies } from 'next/headers';
 import { notifyUser } from '@/lib/notify';
 
@@ -28,7 +29,7 @@ export async function POST(request: Request) {
       }
       const fromStartup = await prisma.startup.findUnique({ where: { id: parseInt(fromStartupId) } });
       if (!fromStartup) return NextResponse.json({ error: 'Your startup was not found.' }, { status: 404 });
-      if (fromStartup.founderId !== decoded.id && decoded.role !== 'ADMIN') {
+      if (fromStartup.founderId !== decoded.id && !(await hasLiveAdminRole(decoded.id))) {
         return NextResponse.json({ error: 'You can only send collaboration requests on behalf of your own startup.' }, { status: 403 });
       }
 
@@ -66,3 +67,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+
+

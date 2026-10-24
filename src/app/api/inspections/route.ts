@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
-import { verifyAccessToken } from '@/lib/auth';
+import { verifyAccessToken } from '@/lib/auth'
+import { hasLiveAdminRole } from '@/lib/admin-auth';
 
 const ALLOWED_TIERS = ['BASIC', 'PREMIUM'] as const;
 
@@ -21,7 +22,7 @@ export async function POST(request: Request) {
 
     const startup = await prisma.startup.findUnique({ where: { id: parseInt(startupId) } });
     if (!startup) return NextResponse.json({ error: 'Startup not found.' }, { status: 404 });
-    if (startup.founderId !== decoded.id && decoded.role !== 'ADMIN') {
+    if (startup.founderId !== decoded.id && !(await hasLiveAdminRole(decoded.id))) {
       return NextResponse.json({ error: 'You can only request inspection for your own startup.' }, { status: 403 });
     }
 
@@ -54,3 +55,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+
+

@@ -75,8 +75,10 @@ export async function auditLog({
         metadata: metadata ? serializeMetadata(metadata) : null,
       },
     });
+    return true;
   } catch {
-    // Audit writes must never break the auth flow.
+    // Audit writes must never break the auth flow for non-critical events.
+    return false;
   }
 }
 
@@ -253,10 +255,21 @@ export async function authorizeAdmin(req: NextRequest, opts: AuthorizeOpts): Pro
   };
 }
 
-/** Helper for routes that need the current password for sensitive operations. */
+export async function hasLiveAdminRole(userId: number): Promise<boolean> {
+  const assignments = await prisma.adminRoleAssignment.findMany({ where: { userId }, select: { role: true } });
+  return assignments.length > 0;
+}
 export async function verifyCurrentPassword(userId: number, currentPassword: string): Promise<boolean> {
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { password: true } });
   if (!user?.password) return false;
   const bcrypt = await import('bcryptjs');
   return bcrypt.compare(currentPassword, user.password);
+}
+
+
+export async function hasOrgMembership(userId: number, organizationId: number | null, minRole: 'VIEWER' | 'MEMBER' | 'ADMIN' | 'OWNER' = 'MEMBER'): Promise<boolean> {
+  if (!organizationId) return false;
+  const rank: Record<string, number> = { VIEWER: 0, MEMBER: 1, ADMIN: 2, OWNER: 3 };
+  const memberships = await prisma.organizationMembership.findMany({ where: { userId, organizationId }, select: { role: true } });
+  return memberships.some(m => (rank[m.role] ?? -1) >= rank[minRole]);
 }
