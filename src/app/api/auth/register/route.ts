@@ -9,7 +9,7 @@ import { verifyTurnstile } from '@/lib/turnstile';
 import { validatePassword } from '@/lib/password-policy';
 import { validateRegistrationProfile } from '@/lib/registration-rules';
 
-const ALLOWED_ROLES = ['STUDENT', 'PROFESSIONAL', 'STARTUP', 'INVESTOR', 'MENTOR', 'OTHER'] as const;
+const ALLOWED_ROLES = ['STUDENT', 'PROFESSIONAL', 'STARTUP', 'INVESTOR', 'MENTOR', 'ORGANIZATION', 'OTHER'] as const;
 
 // Fields on the User model that can be set directly from registration profile.
 const USER_PROFILE_FIELDS = new Set([
