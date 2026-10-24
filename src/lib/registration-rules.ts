@@ -6,7 +6,7 @@
  */
 import { isSafeHttpUrl } from './url-safety';
 
-export const SIGNUP_ROLES = ['STUDENT', 'PROFESSIONAL', 'STARTUP', 'INVESTOR', 'MENTOR', 'OTHER'] as const;
+export const SIGNUP_ROLES = ['STUDENT', 'PROFESSIONAL', 'STARTUP', 'INVESTOR', 'MENTOR', 'ORGANIZATION', 'OTHER'] as const;
 export type SignupRole = (typeof SIGNUP_ROLES)[number];
 
 export const DOMAINS = ['AI', 'FinTech', 'HealthTech', 'EdTech', 'SaaS', 'E-commerce', 'Logistics', 'CleanTech', 'GameTech', 'Other'] as const;
@@ -57,9 +57,14 @@ export const ROLE_FIELDS: Record<SignupRole, FieldSpec[]> = {
     { key: 'mentorBio', label: 'Your background', required: true, kind: 'textarea', min: 20, max: 1000 },
     { key: 'mentorAvailability', label: 'Availability', required: false, kind: 'text', max: 80 },
   ],
+  ORGANIZATION: [
+    { key: 'organization', label: 'Organization Name', required: true, kind: 'text', min: 2, max: 100 },
+    { key: 'organizationType', label: 'Organization Type', required: true, kind: 'select', options: ['Incubator', 'Accelerator', 'College/University', 'Startup Support Agency', 'Nonprofit', 'Company/Service Provider', 'Government Agency', 'Other'], max: 50 },
+    { key: 'bio', label: 'What brings your organization to StartupzConnect?', required: false, kind: 'textarea', min: 0, max: 500 },
+  ],
   OTHER: [
-    { key: 'organization', label: 'Organization', required: true, kind: 'text', min: 2, max: 100 },
-    { key: 'bio', label: 'What brings you to StartupzConnect?', required: true, kind: 'textarea', min: 10, max: 500 },
+    { key: 'description', label: 'What best describes you?', required: true, kind: 'select', options: ['Job Seeker', 'Career Explorer', 'Startup Enthusiast', 'Researcher', 'General Visitor'], max: 50 },
+    { key: 'bio', label: 'What brings you to StartupzConnect?', required: false, kind: 'textarea', min: 0, max: 500 },
   ],
 };
 /** The optional, skippable "complete your profile" step. */

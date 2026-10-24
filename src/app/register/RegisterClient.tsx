@@ -14,6 +14,7 @@ const roleIcons: Record<string, React.ElementType> = {
   STARTUP: Building,
   INVESTOR: Percent,
   MENTOR: Users,
+  ORGANIZATION: Building2,
   OTHER: FileText,
 };
 
@@ -225,28 +226,6 @@ const [attemptId] = useState(() => (typeof crypto !== 'undefined' ? crypto.rando
 
               <PasswordStrength password={form.password} />
 
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">I am a…</label>
-                <div className="space-y-2">
-                  {SIGNUP_ROLES.map((r) => {
-                    const Icon = roleIcons[r];
-                    return (
-                      <label key={r}
-                        className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${form.role === r ? 'border-indigo-500/60 bg-indigo-500/10' : 'border-white/10 bg-white/[0.02] hover:border-white/20'}`}>
-                        <input type="radio" name="role" value={r} checked={form.role === r}
-                          onChange={() => setForm({ ...form, role: r })} className="mt-0.5 accent-indigo-500" />
-                        <div className="flex items-center gap-2">
-                          <Icon className="w-5 h-5 text-slate-400" />
-                          <div>
-                            <p className="text-sm font-medium text-white">{r}</p>
-                          </div>
-                        </div>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-
               <div className="flex justify-between pt-2">
                 <button type="button" onClick={nextStep} disabled={loading || passwordStrength(form.password).score < 2}
                   className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white font-semibold text-sm transition-colors">
@@ -273,6 +252,13 @@ const [attemptId] = useState(() => (typeof crypto !== 'undefined' ? crypto.rando
               )}
 
               <form onSubmit={(e) => { e.preventDefault(); nextStep(); }} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1.5">I am a…</label>
+                  <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-lg bg-slate-900 border border-white/10 text-white text-sm focus:outline-none focus:border-indigo-500 transition-colors">
+                    {SIGNUP_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </div>
                 {roleSpecs.map((f) => (
                   <div key={f.key}>
                     <label className="block text-sm font-medium text-slate-300 mb-1.5">
