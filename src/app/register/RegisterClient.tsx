@@ -1,11 +1,13 @@
 'use client';
 import { useState, useCallback, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import api from '@/lib/api';
 import Link from 'next/link';
 import { User, Mail, Lock, AlertCircle, Loader2, Eye, EyeOff, ChevronRight, ChevronLeft, CheckCircle, FileText, Building2, Briefcase, Building, Users, Percent, Ticket, ExternalLink, CheckCircle2, Info } from 'lucide-react';
 import { ROLE_FIELDS, SIGNUP_ROLES, validateRegistrationProfile } from '@/lib/registration-rules';
 import { getLegalDocsRead, clearLegalDocsRead, type LegalDoc } from '@/lib/legal-consent';
 import PasswordStrength from '@/components/PasswordStrength';
+import OtpInput from '@/components/OtpInput';
 import { passwordStrength } from '@/lib/password-policy';
 
 const roleIcons: Record<string, React.ElementType> = {
@@ -35,6 +37,10 @@ export default function RegisterWizard() {
 const [attemptId] = useState(() => (typeof crypto !== 'undefined' ? crypto.randomUUID() : Math.random().toString(36).slice(2)));
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [otpLoading, setOtpLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   const role = form.role;
@@ -226,11 +232,43 @@ const [attemptId] = useState(() => (typeof crypto !== 'undefined' ? crypto.rando
 
               <PasswordStrength password={form.password} />
 
-              <div className="flex justify-between pt-2">
-                <button type="button" onClick={nextStep} disabled={loading || passwordStrength(form.password).score < 2}
+              {!otpSent ? (
+                <button type="button" onClick={async () => {
+                  setOtpLoading(true);
+                  try {
+                    await api.post('/auth/send-otp', { email: form.email, purpose: 'registration' });
+                    setOtpSent(true);
+                  } catch (e: any) { setError(e?.response?.data?.error || 'Failed to send OTP.'); }
+                  finally { setOtpLoading(false); }
+                }} disabled={loading || otpLoading || passwordStrength(form.password).score < 2}
                   className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white font-semibold text-sm transition-colors">
-                  Continue to Profile<ChevronRight className="w-4 h-4" />
+                  {otpLoading ? 'Sending OTP...' : 'Send Verification Code'}
                 </button>
+              ) : (
+                <div className="space-y-3">
+                  <OtpInput value={otp} onChange={setOtp} />
+                  {!otpVerified ? (
+                    <button type="button" onClick={async () => {
+                      setOtpLoading(true);
+                      try {
+                        await api.post('/auth/verify-otp', { email: form.email, purpose: 'registration', code: otp });
+                        setOtpVerified(true);
+                      } catch (e: any) { setError(e?.response?.data?.error || 'Invalid OTP.'); }
+                      finally { setOtpLoading(false); }
+                    }} disabled={otpLoading || otp.length < 6}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white font-semibold text-sm transition-colors">
+                      {otpLoading ? 'Verifying...' : 'Verify Code'}
+                    </button>
+                  ) : (
+                    <button type="button" onClick={nextStep} disabled={loading}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white font-semibold text-sm transition-colors">
+                      Continue to Profile<ChevronRight className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              )}
+
+              <div className="flex justify-between pt-2">
               </div>
             </form>
           )}

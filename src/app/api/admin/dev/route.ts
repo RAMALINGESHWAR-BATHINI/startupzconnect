@@ -12,7 +12,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       health: { status: 'ok', uptime: process.uptime() },
       diagnostics: { nodeVersion: process.version, env: process.env.NODE_ENV },
-      integrations: { resend: !!process.env.RESEND_API_KEY, r2: !!process.env.R2_PRIVATE_BUCKET_NAME, turnstile: !!process.env.TURNSTILE_SECRET_KEY },
+      integrations: { smtp: !!process.env.SMTP_USER, r2: !!process.env.R2_PRIVATE_BUCKET_NAME, turnstile: !!process.env.TURNSTILE_SECRET_KEY },
       note: 'Deployment status and release history require Cloudflare integration.',
     });
   } catch (err) {

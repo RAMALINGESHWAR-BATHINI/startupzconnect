@@ -13,7 +13,7 @@ const ALLOWED_ROLES = ['STUDENT', 'PROFESSIONAL', 'STARTUP', 'INVESTOR', 'MENTOR
 
 // Fields on the User model that can be set directly from registration profile.
 const USER_PROFILE_FIELDS = new Set([
-  'organization', 'location', 'portfolio', 'bio', 'skills',
+  'organization', 'organizationType', 'description', 'reasonForJoining', 'location', 'portfolio', 'bio', 'skills',
   'investorNetWorth', 'investorTicketSize', 'investorThesis', 'investorSectors',
   'investorPastDeals', 'sebiRegNumber', 'mentorExpertise', 'mentorAvailability',
   'mentorBio', 'mentorIsActive',
@@ -98,18 +98,36 @@ export async function POST(request: Request) {
     const hashedPassword = await bcrypt.hash(passwordValue, 12);
     const emailVerifyToken = generateToken();
 
-    const user = await prisma.user.create({
-      data: {
-        name: nameValue.trim(),
-        email: emailValue.toLowerCase().trim(),
-        password: hashedPassword,
-        role: safeRole,
-        emailVerifyToken,
-        emailVerifyExpires: hoursFromNow(24),
-        termsAcceptedAt: new Date(),
-        ...userProfileData,
-      },
-      select: { id: true, name: true, email: true, role: true },
+    const user = await prisma.$transaction(async (tx) => {
+      const createdUser = await tx.user.create({
+        data: {
+          name: nameValue.trim(),
+          email: emailValue.toLowerCase().trim(),
+          password: hashedPassword,
+          role: safeRole,
+          emailVerifyToken,
+          emailVerifyExpires: hoursFromNow(24),
+          termsAcceptedAt: new Date(),
+          ...userProfileData,
+        },
+        select: { id: true, name: true, email: true, role: true },
+      });
+
+      if (safeRole === 'ORGANIZATION') {
+        const orgName = (userProfileData.organization as string) || createdUser.name;
+        const org = await tx.organization.create({
+          data: { name: orgName },
+        });
+        await tx.organizationMembership.create({
+          data: {
+            organizationId: org.id,
+            userId: createdUser.id,
+            role: 'OWNER',
+          },
+        });
+      }
+
+      return createdUser;
     });
 
     const verifyUrl = `${process.env.NEXT_PUBLIC_API_URL ?? ''}/verify-email?token=${emailVerifyToken}`;

@@ -29,7 +29,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     const res = await api.post('/auth/login', { email, password });
     setUser(res.data.user);
-    router.push('/dashboard');
+    const role = res.data.user?.role;
+    if (role === 'ORGANIZATION') {
+      router.push('/dashboard/organization');
+    } else {
+      router.push('/dashboard');
+    }
   };
 
   const register = async (name: string, email: string, password: string, role: string, acceptTerms: boolean, profile?: Record<string, string>) => {

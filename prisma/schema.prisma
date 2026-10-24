@@ -75,6 +75,9 @@ model User {
   lockedUntil                DateTime?
   createdAt                  DateTime                 @default(now())
   updatedAt                  DateTime                 @updatedAt
+  description                String?
+  organizationType           String?
+  reasonForJoining           String?
   adminAssignments           AdminRoleAssignment[]
   cofounderListing           CofounderListing?
   collaborationRequests      CollaborationRequest[]
@@ -685,4 +688,17 @@ model ClaimEvidence {
   createdAt  DateTime @default(now())
 
   @@index([claimId])
+}
+
+model OtpCode {
+  id        Int      @id @default(autoincrement())
+  email     String
+  codeHash  String
+  purpose   String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([email, purpose])
 }

@@ -1,45 +1,32 @@
-/**
- * Email sending via Resend.
- *
- * Requires RESEND_API_KEY and RESEND_FROM_EMAIL in the environment.
- * Without them, emails are logged to the server console instead — fully
- * functional for local development, but nobody receives anything in
- * production until these two env vars are set.
- */
-const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'StartupzConnect <noreply@startupzconnect.com>';
+import nodemailer from 'nodemailer';
 
-export async function sendMail(to: string, subject: string, bodyText: string) {
-  if (RESEND_API_KEY) {
-    try {
-      const res = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${RESEND_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: RESEND_FROM_EMAIL,
-          to,
-          subject,
-          text: bodyText,
-        }),
-      });
-      if (!res.ok) {
-        const errBody = await res.text().catch(() => '');
-        console.error(`Resend API error (${res.status}):`, errBody);
-      }
-      return;
-    } catch (err) {
-      console.error('Failed to send email via Resend:', err);
-      // Fall through to console logging below so the message isn't silently lost.
-    }
-  }
+const isProd = process.env.NODE_ENV === 'production';
 
-  // Dev fallback / failure fallback — always visible in server logs.
-  console.log(`\n─── MAIL ${RESEND_API_KEY ? '(send failed, logged instead)' : '(stub — no RESEND_API_KEY set)'} ───\nTo: ${to}\nSubject: ${subject}\n\n${bodyText}\n───────────────────\n`);
+function getTransport() {
+  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+  const port = Number(process.env.SMTP_PORT || 465);
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  if (!user || !pass) return null;
+  return nodemailer.createTransport({ host, port, secure: port === 465, auth: { user, pass } });
 }
 
-export function emailBackend(): 'resend' | 'console-stub' {
-  return RESEND_API_KEY ? 'resend' : 'console-stub';
+export async function sendMail(to: string, subject: string, text: string, html?: string) {
+  const transport = getTransport();
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'startupzconnect@gmail.com';
+  if (!transport) {
+    if (!isProd) console.log(`MAIL (dev stub) to ${to}: ${subject}`);
+    return false;
+  }
+  try {
+    await transport.sendMail({ from: `StartupzConnect <${from}>`, to, subject, text, html });
+    return true;
+  } catch (err) {
+    console.error('sendMail failed:', err);
+    return false;
+  }
+}
+
+export function emailBackend(): 'smtp' | 'console-stub' {
+  return getTransport() ? 'smtp' : 'console-stub';
 }

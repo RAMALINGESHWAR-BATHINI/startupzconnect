@@ -82,6 +82,12 @@ export default function DashboardPage() {
             className="px-4 py-2.5 rounded-xl border border-white/10 text-slate-300 hover:text-white text-sm font-medium transition-colors">
             Settings
           </Link>
+          {user.role === 'ORGANIZATION' && (
+            <Link href="/dashboard/organization"
+              className="px-4 py-2.5 rounded-xl border border-white/10 text-slate-300 hover:text-white text-sm font-medium transition-colors">
+              Organization
+            </Link>
+          )}
           {(user.role === 'STARTUP' || user.role === 'ADMIN') && (
             <Link href="/dashboard/startups/create"
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition-colors">

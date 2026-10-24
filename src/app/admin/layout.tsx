@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 
 const ADMIN_NAV = [
@@ -22,6 +23,7 @@ interface AdminLayoutProps { children: React.ReactNode }
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const [permissions, setPermissions] = useState<string[]>([]);
+  const { logout } = useAuth();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
@@ -80,7 +82,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           <div className="text-xs text-gray-500 mb-2">{user.email}</div>
           <div className="text-xs font-medium capitalize">{user.adminRoles?.join(', ') || 'user'}</div>
           <button
-            onClick={() => { api.post('/auth/logout-all'); router.push('/login'); }}
+            onClick={() => { api.post('/auth/logout-all').then(() => { logout().catch(() => {}); setUser(null); router.push('/login'); router.refresh(); }).catch(() => { logout().catch(() => {}); setUser(null); router.push('/login'); router.refresh(); }); }}
             className="w-full text-xs text-red-600 hover:text-red-800 underline mt-2"
           >
             Logout all devices

@@ -33,7 +33,9 @@ export default function SettingsPage() {
     api.get('/auth/profile').then(r => setEmailVerified(!!r.data.user?.emailVerified)).catch(() => {});
   }, [user]);
 
-  if (!authLoading && !user) { router.push('/login'); return null; }
+  useEffect(() => {
+    if (!authLoading && !user) router.push('/login');
+  }, [authLoading, user, router]);
   if (authLoading || !user) return (
     <div className="flex items-center justify-center min-h-screen">
       <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
@@ -69,7 +71,9 @@ export default function SettingsPage() {
     setLogoutAllLoading(true); setLogoutAllMsg('');
     try {
       await api.post('/auth/logout-all');
+      await logout().catch(() => {});
       router.push('/login');
+      router.refresh();
     } catch { setLogoutAllMsg('Failed to log out of all devices.'); setLogoutAllLoading(false); }
   };
 

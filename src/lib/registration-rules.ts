@@ -64,7 +64,7 @@ export const ROLE_FIELDS: Record<SignupRole, FieldSpec[]> = {
   ],
   OTHER: [
     { key: 'description', label: 'What best describes you?', required: true, kind: 'select', options: ['Job Seeker', 'Career Explorer', 'Startup Enthusiast', 'Researcher', 'General Visitor'], max: 50 },
-    { key: 'bio', label: 'What brings you to StartupzConnect?', required: false, kind: 'textarea', min: 0, max: 500 },
+    { key: 'reasonForJoining', label: 'What brings you to StartupzConnect?', required: false, kind: 'textarea', min: 0, max: 500 },
   ],
 };
 /** The optional, skippable "complete your profile" step. */
